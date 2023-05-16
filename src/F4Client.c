@@ -39,7 +39,7 @@ int main(int argc, char * argv[]){
     int nColonne;
     char *param1, *param2;
     
-    ssize_t sizeMem = sizeof(struct tavolo_da_gioco);
+    ssize_t sizeMem = sizeof(sizeof(int *) + sizeof(int *));
     key_t chiave = 3945;//atoi(argv[0]); //chiave generata a mano
     
     int shmTavId = shmget(chiave, sizeMem, IPC_CREAT | S_IRUSR | S_IWUSR);
