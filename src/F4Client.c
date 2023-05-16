@@ -7,41 +7,34 @@
 
 #include "../inc/shared_memory.h"
 struct tavolo_da_gioco tavolo;
+struct dati;
 
-void stampaMatrice(int nRighe, int nColonne){ 
-//stampa la matrice ad ogni turno di gioco (aggiornata)
-// la deve costruire secondo la mem condivisa
-    char matrice[nRighe][nColonne];
-    //riempimento matrice;
-    for(int r = 0; r < nRighe; r++){
-        for(int c = 0; c < nColonne; c++){
-            matrice[r][c] = 'O';
+void stampaMatrice(int nRighe, int nColonne, char * griglia){ 
+    //int numTot = nRighe * nColonne;
+    int indice = 0;
+
+    for(int i = 0; i < nColonne; i++){
+        for(int j = 0; j < nRighe; j++){
+            printf("|%c", griglia[indice]);
+            indice++;
         }
-    }
-    //stampa matrice
-    int righine = 0;
-    for(int r = 0; r < nRighe; r++){
-        for(int c = 0; c < nColonne; c++){
-            printf("| %c |", matrice[r][c]);
-        }
-        printf("\n");
-        while(righine != nColonne){
-            printf("-----");
-            righine = righine + 1;
-        }
-        printf("\n");
-        righine = 0;
+
+        printf("|\n");
     }
 }
 
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
-    char *griglia;
+    char * griglia;
     
+    //dati mem condivise
     ssize_t sizeMemG = sizeof(struct tavolo_da_gioco);
     key_t chiaveG = 3945;
-    
+    ssize_t sizeMemD = sizeof(struct dati);
+    key_t chiaveD = 6263;
+    int shmIdD;
+
     int shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdG == -1)
         printf("Errore shmget\n");
@@ -49,8 +42,17 @@ int main(int argc, char * argv[]){
     //allaccio memoria
     griglia = (char *)shmat(shmIdG, NULL, 0);
     
+    /*
     printf("%c\n", griglia[0]);
-    printf("%c\n", griglia[1]);
-    //stampaMatrice(nRighe, nColonne);
+    printf("%c\n", griglia[1]);*/
+    
+    
+    //salvataggio dati dalla mem condivisa
+    shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
+    struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
+    nColonne = dati->nColonne;
+    nRighe = dati->nRighe;
+
+    stampaMatrice(nRighe, nColonne, griglia);
     
 }
