@@ -50,12 +50,14 @@ int main(int argc, char * argv[]){
     
     sizeMemD = sizeof(struct dati);
     //alloco memoria condivisa per Dati
-    chiaveD = 6263;
+    chiaveD = ftok("./src/chiaveDati.txt", 'a');
     shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
     struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
     dati->nColonne = nColonne;
     dati->nRighe = nRighe;
-
+    dati->collegamento[0] = 1;
+    dati->collegamento[1] = 0;
+    dati->collegamento[2] = 0;
     //distaccamento memoria dati
     /*
     if (shmdt(dati) == -1)
@@ -66,8 +68,10 @@ int main(int argc, char * argv[]){
     //alloco memoria condivisa per Griglia
     //TODO
     //generare chiave con ftok tramite nomefile e stesso char per ogni chiamata alla mem
-    chiaveG = 4000;
-    sizeMemG = (nRighe * nColonne) * sizeof(char); //dimensione colonne x righe in char
+    chiaveG = ftok("./src/chiaveGriglia.txt", 'a');
+    if (chiaveG == -1)
+        printf("creazione chiave fallita\n");
+    sizeMemG = nRighe * nColonne * sizeof(char); //dimensione colonne x righe in char
     shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR); //creazione shm
     if(shmIdG == -1){
         //TODO
@@ -86,9 +90,11 @@ int main(int argc, char * argv[]){
     for(int i = 0; i < nRighe*nColonne; i++){
         griglia[i] = ' ';
     }
-    /*
-    execl("./client", NULL);
-    if(shmctl(shmIdD, IPC_RMID, 0) == -1)
+    
+    //execl("./client", NULL);
+    if(dati->collegamento[1] == 1 ){
+        if(shmctl(shmIdD, IPC_RMID, 0) == -1)
         printf("Server: rimozione della memoria fallita\n");
-    */
+    }
+    
 }

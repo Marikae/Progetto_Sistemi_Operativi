@@ -6,11 +6,10 @@
 #include <sys/stat.h>
 
 #include "../inc/shared_memory.h"
-//struct tavolo_da_gioco tavolo;
 struct dati;
 
 void stampaMatrice(int nRighe, int nColonne, char * griglia){ 
-    //int numTot = nRighe * nColonne;
+    
     int indice = 0;
     for(int i = 0; i < nColonne; i++){
         for(int j = 0; j < nRighe; j++){
@@ -31,20 +30,28 @@ int main(int argc, char * argv[]){
     //salvataggio dati dalla mem condivisa
     //SHM DATI
     ssize_t sizeMemD = sizeof(struct dati);
-    key_t chiaveD = 6263;
+    key_t chiaveD = ftok("./src/chiaveDati.txt", 'a');
     int shmIdD;
     shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
-    struct dati * dat = (struct dati *)shmat(shmIdD, NULL, 0);
-    nColonne = dat->nColonne;
-    nRighe = dat->nRighe;
-    //rimozione memoria per i dati
-    /*
-    if (shmdt(dat) == -1 || shmctl(shmIdD, IPC_RMID, NULL) == -1)
-        printf("Client: shmdt failed\n");
+    struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
+    nColonne = dati->nColonne;
+    nRighe = dati->nRighe;
+
+    //collegamento server - clients
+    if(dati->collegamento[1] == 0){
+        dati->collegamento[1] = 1;
+    }else if(dati->collegamento[2] == 0){
+        dati->collegamento[2] = 1;
+    }else{
+        return 0;
+    }
     
-    */
+
+    
+    //rimozione memoria per i dati
+    
     //SHM GRIGLIA
-    key_t chiaveG = 4000;
+    key_t chiaveG = ftok("./src/chiaveGriglia.txt", 'a');
     ssize_t sizeMemG = (nRighe * nColonne) * sizeof(char);
     int shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdG == -1)
@@ -57,6 +64,10 @@ int main(int argc, char * argv[]){
     
     stampaMatrice(nRighe, nColonne, griglia);
 
-    if(shmctl(shmIdD, IPC_RMID, 0) == -1)
-        printf("Server: rimozione della memoria fallita\n");
+    if(dati->collegamento[2] == 1){
+        printf("ottimo è arrivato anche il secondo client\n");
+        if(shmctl(shmIdD, IPC_RMID, 0) == -1)
+            printf("Server: rimozione della memoria fallita\n");
+    }
+    
 }

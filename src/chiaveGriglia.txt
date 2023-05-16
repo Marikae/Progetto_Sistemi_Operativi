@@ -1,0 +1,1 @@
+sono la chiave per la mem condivisa dell'array
