@@ -5,7 +5,8 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
-//#include "shared_memory.h"
+#include "../inc/shared_memory.h"
+struct tavolo_da_gioco tavolo;
 
 void guida(){
     printf("Inserimento non valido!\nInput atteso: ./F4Server righe colonne param1 param2\nN.B. il numero delle righe e delle colonne deve essere maggiore o uguale a 5\n");
@@ -31,10 +32,11 @@ int main(int argc, char * argv[]){
     //VARIABILI
     int nRighe;
     int nColonne;
+    /*
     char *param1, *param2;
     char ** griglia;
     //char tab[nRighe][nColonne];
-
+    */
     //parametri per memoria condivisa
     key_t chiave; //chiave shared mem.
     int shmTavId; //id shared mem.
@@ -45,12 +47,14 @@ int main(int argc, char * argv[]){
     //salvataggio degli input
     nRighe = atoi(argv[1]);
     nColonne = atoi(argv[2]);
+    /*
     param1 = argv[3];
     param2 = argv[4];
-
+    */
 
     //printf("righe: %d\ncolonne: %d\nparam1: %s\nparam2: %s\n", nRighe, nColonne, param1, param2);
-    sizeMem = sizeof(int *) + sizeof(int *) + sizeof(char *) + sizeof(char *) + sizeof(nColonne * sizeof(char)) + sizeof(nRighe * sizeof(char)); //dimensione della memoria da allocare
+    sizeMem = sizeof(int *) + sizeof(int *); //dimensione della memoria da allocare
+    //+ sizeof(char *) + sizeof(char *) + sizeof(nColonne * sizeof(char)) + sizeof(nRighe * sizeof(char))
 
     //alloco memoria condivisa
     chiave = 3945;//atoi(argv[0]); //chiave generata a mano
@@ -64,9 +68,9 @@ int main(int argc, char * argv[]){
     //salvataggio dei dati in memoria
     allaccio->nColonne = nColonne;
     allaccio->nRighe = nRighe;
+    /*
     allaccio->param1 = param1;
     allaccio->param2 = param2;
-    char g[nColonne][nRighe];
-    allaccio->griglia = *g;
+    */
     //allaccio->tab[][] = tab[][];
 }
