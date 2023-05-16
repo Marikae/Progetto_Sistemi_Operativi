@@ -7,6 +7,7 @@
 
 #include "../inc/shared_memory.h"
 struct tavolo_da_gioco tavolo;
+struct dati;
 
 void guida(){
     printf("Inserimento non valido!\nInput atteso: ./F4Server righe colonne param1 param2\nN.B. il numero delle righe e delle colonne deve essere maggiore o uguale a 5\n");
@@ -36,6 +37,11 @@ int main(int argc, char * argv[]){
     int shmIdG;
     size_t sizeMemG;
 
+    //parametri shm per Dati
+    key_t chiaveD; 
+    int shmIdD;
+    size_t sizeMemD;
+
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
 
     //salvataggio degli input
@@ -44,11 +50,11 @@ int main(int argc, char * argv[]){
     param1 = argv[3];
     param2 = argv[4];
     
-
-    sizeMemG = sizeof(nColonne * sizeof(char)) + sizeof(nRighe * sizeof(char)); //dimensione colonne x righe in char
     
+    sizeMemG = sizeof(nColonne * sizeof(char)) + sizeof(nRighe * sizeof(char)); //dimensione colonne x righe in char
+    sizeMemD = sizeof(struct dati);
 
-    //alloco memoria condivisa
+    //alloco memoria condivisa per Griglia
     //TODO
     //generare chiave con ftok tramite nomefile e stesso char per ogni chiamata alla mem
     chiaveG = 3945;
@@ -60,11 +66,17 @@ int main(int argc, char * argv[]){
         printf("Errore shmget\n"); //ERRORE
         exit(1);
     }
-
     //allaccio memoria
     griglia = (char *)shmat(shmIdG, NULL, 0);
     //TODO
     //gestire errore shmat
+    
+    //alloco memoria condivisa per Dati
+    chiaveD = 6263;
+    shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
+    struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
+    dati->nColonne = nColonne;
+    dati->nRighe = nRighe;
     
     //TEST
     griglia[0] = 'a';
