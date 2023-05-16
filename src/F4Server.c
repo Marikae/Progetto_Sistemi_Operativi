@@ -77,9 +77,11 @@ int main(int argc, char * argv[]){
     struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
     dati->nColonne = nColonne;
     dati->nRighe = nRighe;
-    
+
     //TEST
-    griglia[0] = 'a';
-    griglia[1] = 'b';
+    for(int i = 0; i < nRighe*nColonne; i++){
+        griglia[i] = 'o';
+    }
+    
 
 }

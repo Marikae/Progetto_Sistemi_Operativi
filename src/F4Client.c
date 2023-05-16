@@ -42,17 +42,13 @@ int main(int argc, char * argv[]){
     //allaccio memoria
     griglia = (char *)shmat(shmIdG, NULL, 0);
     
-    /*
-    printf("%c\n", griglia[0]);
-    printf("%c\n", griglia[1]);*/
-    
     
     //salvataggio dati dalla mem condivisa
     shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
     struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
     nColonne = dati->nColonne;
     nRighe = dati->nRighe;
-
+    
     stampaMatrice(nRighe, nColonne, griglia);
     
 }
