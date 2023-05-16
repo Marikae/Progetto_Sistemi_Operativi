@@ -37,23 +37,20 @@ void stampaMatrice(int nRighe, int nColonne){
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
-    char *param1, *param2;
+    char *griglia;
     
-    ssize_t sizeMem = sizeof(sizeof(int *) + sizeof(int *));
-    key_t chiave = 3945;//atoi(argv[0]); //chiave generata a mano
+    ssize_t sizeMemG = sizeof(struct tavolo_da_gioco);
+    key_t chiaveG = 3945;
     
-    int shmTavId = shmget(chiave, sizeMem, IPC_CREAT | S_IRUSR | S_IWUSR);
-    if(shmTavId == -1)
+    int shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR);
+    if(shmIdG == -1)
         printf("Errore shmget\n");
     
     //allaccio memoria
+    griglia = (char *)shmat(shmIdG, NULL, 0);
     
-    struct tavolo_da_gioco *allaccio = (struct tavolo_da_gioco *)shmat(shmTavId, NULL, 0);
-    
-    nColonne = allaccio->nColonne;
-    nRighe = allaccio->nRighe;
-    printf("%d\n", nColonne);
-    printf("%d\n", nRighe);
-    stampaMatrice(nRighe, nColonne);
+    printf("%c\n", griglia[0]);
+    printf("%c\n", griglia[1]);
+    //stampaMatrice(nRighe, nColonne);
     
 }
