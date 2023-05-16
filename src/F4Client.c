@@ -4,15 +4,9 @@
 
 #include <sys/shm.h>
 #include <sys/stat.h>
-//#include "shared_memory.h"
 
-struct tavolo_da_gioco{
-    int nRighe;
-    int nColonne;
-    char * param1;
-    char * param2;
-    //char tab[][];
-};
+//#include "shared_memory.h"
+//struct tavolo_da_gioco tavolo;
 
 void stampaMatrice(int nRighe, int nColonne){ 
 //stampa la matrice ad ogni turno di gioco (aggiornata)
@@ -53,8 +47,10 @@ int main(int argc, char * argv[]){
         printf("Errore shmget\n");
 
     //allaccio memoria
+    /*
     struct tavolo_da_gioco *allaccio = (struct tavolo_da_gioco *)shmat(shmTavId, NULL, 0);
     
     printf("%d\n", allaccio->nColonne);
     printf("%d\n", allaccio->nRighe);
+    */
 }

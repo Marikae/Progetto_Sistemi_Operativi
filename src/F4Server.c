@@ -7,14 +7,6 @@
 
 //#include "shared_memory.h"
 
-struct tavolo_da_gioco{
-    int nRighe;
-    int nColonne;
-    char * param1;
-    char * param2;
-    //char tab[][];
-};
-
 void guida(){
     printf("Inserimento non valido!\nInput atteso: ./F4Server righe colonne param1 param2\nN.B. il numero delle righe e delle colonne deve essere maggiore o uguale a 5\n");
 }
@@ -40,7 +32,9 @@ int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
     char *param1, *param2;
-    char tab[nRighe][nColonne];
+    char ** griglia;
+    //char tab[nRighe][nColonne];
+
     //parametri per memoria condivisa
     key_t chiave; //chiave shared mem.
     int shmTavId; //id shared mem.
@@ -54,19 +48,25 @@ int main(int argc, char * argv[]){
     param1 = argv[3];
     param2 = argv[4];
 
+
     //printf("righe: %d\ncolonne: %d\nparam1: %s\nparam2: %s\n", nRighe, nColonne, param1, param2);
-    sizeMem = sizeof(struct tavolo_da_gioco);
+    sizeMem = sizeof(int *) + sizeof(int *) + sizeof(char *) + sizeof(char *) + sizeof(nColonne * sizeof(char)) + sizeof(nRighe * sizeof(char)); //dimensione della memoria da allocare
+
     //alloco memoria condivisa
     chiave = 3945;//atoi(argv[0]); //chiave generata a mano
-    shmTavId = shmget(chiave, sizeMem, IPC_CREAT | S_IRUSR | S_IWUSR);
+    shmTavId = shmget(chiave, sizeMem, IPC_CREAT | S_IRUSR | S_IWUSR); //creazione shm
     if(shmTavId == -1)
         printf("Errore shmget\n");
 
     //allaccio memoria
     struct tavolo_da_gioco *allaccio = (struct tavolo_da_gioco *)shmat(shmTavId, NULL, 0); //scrittura e lettura
+    
+    //salvataggio dei dati in memoria
     allaccio->nColonne = nColonne;
     allaccio->nRighe = nRighe;
     allaccio->param1 = param1;
     allaccio->param2 = param2;
+    char g[nColonne][nRighe];
+    allaccio->griglia = *g;
     //allaccio->tab[][] = tab[][];
 }
