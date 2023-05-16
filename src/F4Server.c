@@ -5,7 +5,9 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
-#include "shared_memory.h"
+#include "../inc/shared_memory.h"
+struct tavolo_da_gioco tavolo;
+struct dati;
 
 void guida(){
     printf("Inserimento non valido!\nInput atteso: ./F4Server righe colonne param1 param2\nN.B. il numero delle righe e delle colonne deve essere maggiore o uguale a 5\n");
@@ -20,23 +22,25 @@ void controlloInput(int argc, char * argv[]){//CONTROLLI INSERIMENTO DA BASH
         exit(1);
     }
 }
-void vittoria(){
-    //controlla la vincita cioè entra nella memoria condivisa, 
-    //fa i suoi calcoli e comunica ai processi se c'è una vincita.
-}
+
 
 
 
 int main(int argc, char * argv[]){
-    //VARIABILI
     int nRighe;
     int nColonne;
-    char *param1, *param2;
-    char tab[nRighe][nColonne];
-    //parametri per memoria condivisa
-    key_t chiave; //chiave shared mem.
-    int shmTavId; //id shared mem.
-    size_t sizeMem; //dimensione da allocare
+    char *param1, *param2; //non serve condividerli per ora
+    char *griglia;
+
+    //parametri shm per Griglia
+    key_t chiaveG; 
+    int shmIdG;
+    size_t sizeMemG;
+
+    //parametri shm per Dati
+    key_t chiaveD; 
+    int shmIdD;
+    size_t sizeMemD;
 
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
 
@@ -45,20 +49,39 @@ int main(int argc, char * argv[]){
     nColonne = atoi(argv[2]);
     param1 = argv[3];
     param2 = argv[4];
+    
+    
+    sizeMemG = sizeof(nColonne * sizeof(char)) + sizeof(nRighe * sizeof(char)); //dimensione colonne x righe in char
+    sizeMemD = sizeof(struct dati);
 
-    //printf("righe: %d\ncolonne: %d\nparam1: %s\nparam2: %s\n", nRighe, nColonne, param1, param2);
-    sizeMem = sizeof(struct tavolo_da_gioco);
-    //alloco memoria condivisa
-    chiave = atoi(argv[0]); //chiave generata a mano
-    shmTavId = shmget(chiave, sizeMem, IPC_CREAT | S_IRUSR | S_IWUSR);
-    if(shmTavId == -1)
-        printf("Errore shmget\n");
+    //alloco memoria condivisa per Griglia
+    //TODO
+    //generare chiave con ftok tramite nomefile e stesso char per ogni chiamata alla mem
+    chiaveG = 3945;
+    shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR); //creazione shm
 
+    if(shmIdG == -1){
+        //TODO
+        //gestire meglio gli errori
+        printf("Errore shmget\n"); //ERRORE
+        exit(1);
+    }
     //allaccio memoria
-    struct tavolo_da_gioco *allaccio = (struct tavolo_da_gioco *)shmat(shmTavId, NULL, 0); //scrittura e lettura
-    allaccio->nColonne = nColonne;
-    allaccio->nRighe = nRighe;
-    allaccio->param1 = param1;
-    allaccio->param2 = param2;
-    //allaccio->tab[][] = tab[][];
+    griglia = (char *)shmat(shmIdG, NULL, 0);
+    //TODO
+    //gestire errore shmat
+    
+    //alloco memoria condivisa per Dati
+    chiaveD = 6263;
+    shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
+    struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
+    dati->nColonne = nColonne;
+    dati->nRighe = nRighe;
+
+    //TEST
+    for(int i = 0; i < nRighe*nColonne; i++){
+        griglia[i] = 'o';
+    }
+    
+
 }
