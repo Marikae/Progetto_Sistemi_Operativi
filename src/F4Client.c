@@ -5,7 +5,7 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
-#include "shared_memory.h"
+#include "../inc/shared_memory.h"
 struct tavolo_da_gioco tavolo;
 
 void stampaMatrice(int nRighe, int nColonne){ 
@@ -41,6 +41,7 @@ int main(int argc, char * argv[]){
     
     ssize_t sizeMem = sizeof(struct tavolo_da_gioco);
     key_t chiave = 3945;//atoi(argv[0]); //chiave generata a mano
+    
     int shmTavId = shmget(chiave, sizeMem, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmTavId == -1)
         printf("Errore shmget\n");
@@ -49,8 +50,10 @@ int main(int argc, char * argv[]){
     
     struct tavolo_da_gioco *allaccio = (struct tavolo_da_gioco *)shmat(shmTavId, NULL, 0);
     
-    printf("%d\n", allaccio->nColonne);
-    printf("%d\n", allaccio->nRighe);
-    stampaMatrice(allaccio->nRighe, allaccio->nColonne);
+    nColonne = allaccio->nColonne;
+    nRighe = allaccio->nRighe;
+    printf("%d\n", nColonne);
+    printf("%d\n", nRighe);
+    stampaMatrice(nRighe, nColonne);
     
 }
