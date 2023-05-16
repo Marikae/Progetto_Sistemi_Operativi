@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 
 #include "../inc/shared_memory.h"
-struct tavolo_da_gioco tavolo;
+//struct tavolo_da_gioco tavolo;
 struct dati;
 
 void guida(){
@@ -22,8 +22,6 @@ void controlloInput(int argc, char * argv[]){//CONTROLLI INSERIMENTO DA BASH
         exit(1);
     }
 }
-
-
 
 
 int main(int argc, char * argv[]){
@@ -50,27 +48,7 @@ int main(int argc, char * argv[]){
     param1 = argv[3];
     param2 = argv[4];
     
-    
-    sizeMemG = sizeof(nColonne * sizeof(char)) + sizeof(nRighe * sizeof(char)); //dimensione colonne x righe in char
     sizeMemD = sizeof(struct dati);
-
-    //alloco memoria condivisa per Griglia
-    //TODO
-    //generare chiave con ftok tramite nomefile e stesso char per ogni chiamata alla mem
-    chiaveG = 3945;
-    shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR); //creazione shm
-
-    if(shmIdG == -1){
-        //TODO
-        //gestire meglio gli errori
-        printf("Errore shmget\n"); //ERRORE
-        exit(1);
-    }
-    //allaccio memoria
-    griglia = (char *)shmat(shmIdG, NULL, 0);
-    //TODO
-    //gestire errore shmat
-    
     //alloco memoria condivisa per Dati
     chiaveD = 6263;
     shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
@@ -78,10 +56,39 @@ int main(int argc, char * argv[]){
     dati->nColonne = nColonne;
     dati->nRighe = nRighe;
 
-    //TEST
-    for(int i = 0; i < nRighe*nColonne; i++){
-        griglia[i] = 'o';
-    }
-    
+    //distaccamento memoria dati
+    /*
+    if (shmdt(dati) == -1)
+        printf("Server: shmdt failed\n");
+    shmctl(dati, IPC_RMID, 0);
+    */
 
+    //alloco memoria condivisa per Griglia
+    //TODO
+    //generare chiave con ftok tramite nomefile e stesso char per ogni chiamata alla mem
+    chiaveG = 4000;
+    sizeMemG = (nRighe * nColonne) * sizeof(char); //dimensione colonne x righe in char
+    shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR); //creazione shm
+    if(shmIdG == -1){
+        //TODO
+        //gestire meglio gli errori
+        printf("Server: Errore shmget\n"); //ERRORE
+        exit(1);
+    }
+
+    //allaccio memoria
+    griglia = (char *)shmat(shmIdG, NULL, 0);
+    //TODO
+    //gestire errore shmat
+    
+    //TEST
+    
+    for(int i = 0; i < nRighe*nColonne; i++){
+        griglia[i] = ' ';
+    }
+    /*
+    execl("./client", NULL);
+    if(shmctl(shmIdD, IPC_RMID, 0) == -1)
+        printf("Server: rimozione della memoria fallita\n");
+    */
 }
