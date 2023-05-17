@@ -8,7 +8,7 @@
 //nostre librerie
 #include "../lib/shared_memory.h"
 #include "../lib/errExit.h"
-#include "../lib/matrixlib.h"
+#include "../lib/matrixLib.h"
 
 struct dati;
 
