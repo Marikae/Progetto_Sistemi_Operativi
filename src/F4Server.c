@@ -5,7 +5,10 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
+//nostre librerie
 #include "../lib/shared_memory.h"
+#include "../lib/errExit.h"
+#include "../lib/matrixlib.h"
 
 struct dati;
 
