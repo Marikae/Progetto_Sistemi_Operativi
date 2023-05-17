@@ -5,11 +5,14 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
+//nostre librerie
 #include "../lib/shared_memory.h"
+#include "../lib/errExit.h"
+#include "../lib/matrixLib.h"
+
 struct dati;
 
-void stampaMatrice(int nRighe, int nColonne, char * griglia){ 
-    
+void stampaMatrice(int nRighe, int nColonne, char * griglia){
     int indice = 0;
     for(int i = 0; i < nColonne; i++){
         for(int j = 0; j < nRighe; j++){

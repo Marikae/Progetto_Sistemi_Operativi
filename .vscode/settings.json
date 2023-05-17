@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "shared_memory.h": "c",
-        "stdlib.h": "c"
-    }
+        "stdlib.h": "c",
+        "shm.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

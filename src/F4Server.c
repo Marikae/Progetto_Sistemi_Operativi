@@ -5,7 +5,10 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
+//nostre librerie
 #include "../lib/shared_memory.h"
+#include "../lib/errExit.h"
+#include "../lib/matrixLib.h"
 
 struct dati;
 
@@ -38,7 +41,7 @@ int main(int argc, char * argv[]){
     param1 = argv[3];
     param2 = argv[4];
     
-    //--------------------MEMORIA CONDIVISA DATI--------------À-----------------------
+    //--------------------MEMORIA CONDIVISA DATI------------------------------------
     key_t chiaveD = ftok("./src/chiaveDati.txt", 'a');
     if(chiaveD == -1){
         printf("Server: errore nella creazione della chiave dei Dati\n");
