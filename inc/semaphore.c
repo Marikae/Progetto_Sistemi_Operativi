@@ -1,25 +1,98 @@
-#include <sys/sem.h>
-
-#include "../lib/semaphore.h"
+/// @file semaphore.c
+/// @brief Contiene l'implementazione delle funzioni
+///         specifiche per la gestione dei SEMAFORI.
 #include "../lib/errExit.h"
+#include "../lib/semaphore.h"
+
+#include <sys/sem.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 
-/**
- * The function performs a semaphore operation on a specified semaphore.
- * 
- * @param semid semid is an integer representing the ID of the semaphore set that the operation will be
- * performed on.
- * @param sem_num The index of the semaphore within the semaphore set. It is used to identify which
- * semaphore in the set to perform the operation on.
- * @param sem_op sem_op is a short integer that specifies the operation to be performed on the
- * semaphore. It can be a positive or negative integer value. If sem_op is positive, it will increment
- * the value of the semaphore by that amount. If sem_op is negative, it will decrement the value of the
- * semaphore by
- */
+//CREA/CONNETTE AD UN SET DI N SEMAFORI
+int semGet(key_t key, int n){
 
+	errno = 0;
+	int semid = semget(key, n, IPC_CREAT | S_IRUSR | S_IWUSR );
+	if(semid == -1){
+		perror("errno");
+		errExit("<Semaphore.c>: (SEMGET) Errore durante la connessione al set di semafori.\n");
+	}
+
+	return semid;
+}
+
+
+//MODIFICA I VALORI DI UN SET DI SEMAFORI
+void semSet(int semid, union semun arg){
+	if((semctl(semid, 0, SETALL, arg)) == -1){
+		errExit("<Semaphore.c>: (SEMCTL) Errore durante l'inizializzazione del set di semafori.\n");
+	}
+}
+
+
+//ESEGUE UN'OPERAZIONE BLOCCANTE SU UN SET DI SEMAFORI
 void semOp (int semid, unsigned short sem_num, short sem_op) {
-    struct sembuf sop = {.sem_num = sem_num, .sem_op = sem_op, .sem_flg = 0};
 
-    if (semop(semid, &sop, 1) == -1)
-        errExit("semop failed");
+	struct sembuf sop = {
+		sop.sem_num = sem_num,
+		sop.sem_op = sem_op,
+		sop.sem_flg = 0};
+
+	if ((semop(semid, &sop, 1)) == -1){
+		errExit("<Semaphore.c>: (SEMOP) Errore durante l'operazione al set di semafori.\n");
+	}
+}
+
+
+//ESEGUE UN'OPERAZIONE NON BLOCCANTE SU UN SET DI SEMAFORI
+int semOpNoBlock (int semid, unsigned short sem_num, short sem_op) {
+	struct sembuf sop = {
+		sop.sem_num = sem_num,
+		sop.sem_op = sem_op,
+		sop.sem_flg = IPC_NOWAIT};
+
+	errno = 0;
+
+	if ((semop(semid, &sop, 1)) == -1){
+		if(errno == EAGAIN){
+			return -1;
+		}else{
+			errExit("<Semaphore.c>: (SEMOP) Errore durante l'operazione al set di semafori.\n");
+		}
+	}
+
+	return 0;
+}
+
+
+//RIMUOVE UN SET DI SEMAFORI
+void semRemove(int semid){
+
+	if((semctl(semid, 0, IPC_RMID, NULL)) == -1)
+		errExit("<Semaphore.c>: (SEMCTL) Errore durante la rimozione di un set di semafori.\n");
+	}
+
+
+//lEGGE IL VALORE DI UN SEMAFORO
+int getValueSem(int semid, int num){
+
+	int value = semctl(semid, num, GETVAL, NULL);
+	if( value == -1){
+		errExit("<Semaphore.c>: (SEMCTL) Errore durante la letura di un semaforo.\n");
+	}
+	return value;
+}
+
+
+//MODIFICA IL VALORE DI UN SEMAFORO
+int setValueSem(int semid, int num, union semun arg){
+
+	int value = semctl(semid, num, SETVAL, arg);
+	if(value == -1){
+		errExit("<Semaphore.c>: (SEMCTL) Errore durante la scrittura di un semaforo.\n");
+	}
+	return value;
 }

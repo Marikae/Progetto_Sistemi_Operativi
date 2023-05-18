@@ -52,7 +52,7 @@ int main(int argc, char * argv[]){
     int shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdD == -1){
         printf("Server: errore nella creazione della shm dei dati (shmget)\n");
-        //exit(1);
+        exit(1);
     }
     struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
     dati->nColonne = nColonne;
@@ -81,13 +81,13 @@ int main(int argc, char * argv[]){
         griglia[i] = ' ';
     }
     
-
+    
     //-------------------------------------SEMAFORI---------------------------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
 
-    int semIdS = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
-    //sem: s, c1, c2, b, mutex, s1, s2, sp
-    int valori[] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int semIdS = semget(chiaveSem, 7, IPC_CREAT | S_IRUSR | S_IWUSR);
+    //sem: s, c1, c2, b, mutex, s1, s2
+    int valori[] = {0, 0, 0, 1, 1, 0, 0};
     union semun arg;
     arg.array = valori;
 
@@ -100,8 +100,8 @@ int main(int argc, char * argv[]){
     //P(s1) -> attesa client 1
     printf("Attesa giocatori...\n");
     semOp(semIdS, 5, -1);
-    printf("giocatore 1 arrivato\n");
 
+    printf("giocatore 1 arrivato\n");
     //P(s2) -> attesa client 2
     semOp(semIdS, 6, -1);
     //semOp(semIdS, 7, -1);
@@ -124,14 +124,6 @@ int main(int argc, char * argv[]){
         printf("attesa mossa...\n");
     }
 
-    //-------------------CHIUSURA MEM------------------
-
-    //shm dati chiusa alla fine del collegamento (per ora)
-        if(shmctl(shmIdD, IPC_RMID, 0) == -1)
-            printf("Server: rimozione della shm dati fallita\n");
-    //chiusura shm griglia a conclusione
-        if(shmctl(shmIdG, IPC_RMID, 0) == -1)
-            printf("Server: rimozione della shm griglia fallita\n");
     
     
 }

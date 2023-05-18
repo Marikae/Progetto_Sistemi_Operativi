@@ -35,7 +35,6 @@ int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
     char * griglia;
-    int gestione[2];
 
     //---------------------MEMORIA CONDIVISA DATI----------------------------------
     ssize_t sizeMemD = sizeof(struct dati);
@@ -53,8 +52,6 @@ int main(int argc, char * argv[]){
     struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
     nColonne = dati->nColonne;
     nRighe = dati->nRighe;
-    gestione[0] = dati->gestione[0];
-    gestione[1] = dati->gestione[1];
     
     //-------------------------------MEMORIA CONDIVISA GRIGLIA-------------------------------
     key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
@@ -76,18 +73,18 @@ int main(int argc, char * argv[]){
     
     //-------------------------SEMAFORI INIT-------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
-    int semIdS = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
+    int semIdS = semget(chiaveSem, 7, IPC_CREAT | S_IRUSR | S_IWUSR);
     
     
     //ciclo finchè non termina il gioco (arresa/vittoria/stallo)
     //giocatore1 e giocatore2
     
     //sem: s, c1, c2, b, mutex, s1, s2
-    if(gestione[0] == 0){
-        gestione[0] = 1;
+    if(dati->gestione[0] == 0){
+        dati->gestione[0] = 1;
         giocatore1(semIdS);
-    }else if(gestione[0] == 1 && gestione[1] == 0){
-        gestione[1] = 1;
+    }else if(dati->gestione[0] == 1 && dati->gestione[1] == 0){
+        dati->gestione[1] = 1;
         giocatore2(semIdS);
     }
 }
@@ -125,12 +122,13 @@ void giocatore2(int semIdS){
     //V(s2) -> avvisa il server che è arrivato (sblocca)
     semOp(semIdS, 6, 1);
     //semOp(semIdS, 7, 1); 
-
     printf("giocatore 2 arrivato\n");
-    //V(c1) //all'inzio sblocca giocatore 2
-    semOp(semIdS, 1, 1);
+
+    //V(c1) //all'inzio sblocca giocatore 1
+    semOp(semIdS, 1, 2);
     printf("Turno del giocatore 1...");
     while(1){
+        //sem: s, c1, c2, b, mutex, s1, s2
         //P(c2) -> blocco giocatore 2, sbloccato da giocatore 1
         printf("Attesa giocatore 1...");
         semOp(semIdS, 2, -1);
