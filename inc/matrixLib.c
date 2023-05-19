@@ -1,9 +1,8 @@
-#include "../lib/matrixLib.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h> 
 
+#include "../lib/matrixLib.h"
 
 //controllo se la casella è libera
 bool casella_libera(int pos, char *arr){
@@ -13,11 +12,16 @@ bool casella_libera(int pos, char *arr){
         return false;
 };
 
+//RITORNA LA RIGA IN CUI SEI
+int riga(int pos, int nColonne){
+    return pos/nColonne;
+};
+
 //se libera inserisco il segno, altrimenti lo inserisco nella riga sopra
 //se la posizione è uguale o minore di 0 la colonna è piena
 void inserisci(int pos, int colonne, char *arr, char param){
     if(pos < 0){   
-            printf("ERRORE: colonna occupata\n");   
+        printf("ERRORE: colonna occupata\n");   
             return;
     }
     if(casella_libera(pos, arr) == true){
@@ -33,7 +37,7 @@ bool controllo_colonna(int colonna_scelta, int colonne){
         return false;
     else
         return true;
-}
+};
 
 //calcolo la posizione nell'array in base alla colonna scelta
 int posizione(int colonna_scelta, int nRighe, int nColonne, char *arr){
@@ -51,6 +55,7 @@ int posizione(int colonna_scelta, int nRighe, int nColonne, char *arr){
 //stampo la griglia
 void stampa(int nRighe, int nColonne, char *arr){
     int indice = 0;
+    int colonne = nColonne;
 
     for(int i = 0; i < nRighe; i++){
         for(int j = 0; j < nColonne; j++){
@@ -60,23 +65,27 @@ void stampa(int nRighe, int nColonne, char *arr){
         printf("|\n");
     }
 
-    printf("--");
-
-    while(nColonne >= 0){
-        printf("---");
-        nColonne--;
+    while(colonne > 0){
+        printf("----");
+        colonne--;
     }
 
+    printf("-");
     printf("\n");
+
+    for(int i = 1; i <= nColonne; i++)
+        printf("| %d ", i);
+
+    printf("|\n");
 };
 
+//controllo vittoria verticale
 bool vittoria_verticale(int pos, int nRighe, int nColonne, char *arr){
     int uguali = 0;
-    char param = arr[pos];
 
     //CONTROLLO LE CASELLE SOTTO, SE NE TROVO 4 UGUALI DI FILA VINCO
-    while(pos + nColonne < nRighe * nColonne && uguali<3){
-        if(param == arr[pos + nColonne])
+    while(pos + nColonne < nRighe * nColonne && uguali < 3){
+        if(arr[pos] == arr[pos + nColonne])
             uguali++;    
         else 
             uguali = 0;
@@ -89,7 +98,76 @@ bool vittoria_verticale(int pos, int nRighe, int nColonne, char *arr){
         return false;
 };
 
-bool vittoria(int pos, int nRighe, int nColonne, char *arr){
+//VITTORIA ORIZZONTALE
+bool vittoria_orizzontale(int pos, int nColonne, char *arr){
+    char param = arr[pos];
+    int pos_riga = riga(pos, nColonne) * nColonne;
+    int count = 0, uguali = 0;
+    while(count < nColonne && uguali < 4){
+        if(param == arr[pos_riga])
+            uguali++;
+        else{ 
+            uguali = 0;
+        }
+        pos_riga++;
+        count++;
+    }
+    if(uguali == 4){
+        return true;
+    }
+    
+    return false; 
+};
+
+int coordinate(int riga, int colonna_scelta, int nColonne){
+    return riga * nColonne + colonna_scelta ;
+};
+
+//PARITA'
+bool parita(int nRighe, int nColonne, char *arr){
+    for(int i = 0; i < nRighe*nColonne; i++)
+        if(arr[i] == ' ')
+            return false;
+    
+    return true;
+};
+
+bool vittoria_diagonale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
+    char param = arr[pos];
+    int r, c;
+    int count = 0;
+
+    int row = riga(pos, nColonne);
+    int column = colonna_scelta - 1;
+    
+    //CONTROLLO RIGA SOTTO COLONNA DESTRA
+    for(r = row + 1, c = column + 1; r < nRighe && c < nColonne && param == arr[coordinate(r, c, nColonne)] && count < 3; r++, c++){
+        count++;
+    }
+    //CONTROLLO RIGA SOPRA COLONNA SINISTRA
+    for(r = row - 1, c = column - 1; r >= 0 && c >= 0 && param == arr[coordinate(r, c, nColonne)] && count < 3; r--, c--){
+        count++;
+    }
+    
+    //CONTROLLO RIGA SOTTO COLONNA SINISTRA
+    for(r = row + 1, c = column - 1; r < nRighe && c >= 0 && param == arr[coordinate(r, c, nColonne)] && count < 3; r++, c-- )
+        count++;
+
+    //CONTROLLO RIGA SOPRA COLONNA DESTRA
+    for(r = row - 1, c = column + 1; r >= 0 && c < nColonne && param == arr[coordinate(r, c, nColonne)] && count < 3; r--, c++)
+        count++;
+    
+    if(count == 3)
+        return true;
+
+    return false;
+
+}
+
+bool fine_gioco(int pos, int nRighe, int nColonne, char *arr){
     if(vittoria_verticale(pos, nRighe, nColonne, arr))
         return true;
+    if(vittoria_orizzontale(pos, nColonne, arr))
+        return true;
 };
+

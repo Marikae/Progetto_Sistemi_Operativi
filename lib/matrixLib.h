@@ -18,6 +18,17 @@ void stampa(int nRighe, int nColonne, char *arr);
 
 bool vittoria_verticale(int pos, int nRighe, int nColonne, char *arr);
 
-bool vittoria(int pos, int nRighe, int nColonne, char *arr);
+bool vittoria_orrizontale(int pos, int nColonne, char *arr);
+
+bool vittoria_diagonale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr);
+
+bool parita(int nRighe, int nColonne, char *arr);
+
+int coordinate(int riga, int colonna_scelta, int nColonne);
+
+int riga(int pos, int nColonne);
+
+bool fine_gioco(int pos, int nRighe, int nColonne, char *arr);
+
 
 #endif

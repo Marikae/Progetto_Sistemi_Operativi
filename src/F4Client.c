@@ -12,6 +12,7 @@
 #include "../lib/matrixLib.h"
 #include "../lib/semaphore.h"
 
+//posizione semafori
 #define SERVER 0
 #define CLIENT1 1
 #define CLIENT2 2
@@ -21,29 +22,18 @@
 
 struct dati;
 
-void gioca();
+void gioca(int nRighe, int nColonne, char * griglia);
 
-void giocatore1(int semIdS);
+void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia);
 
-void giocatore2(int semIdS);
-
-void stampaMatrice(int nRighe, int nColonne, char * griglia){
-    int indice = 0;
-    for(int i = 0; i < nColonne; i++){
-        for(int j = 0; j < nRighe; j++){
-            printf("|%c", griglia[indice]);
-            indice++;
-        }
-        printf("|\n");
-    }
-}
+void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia);
 
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
     char * griglia;
 
-    //---------------------MEMORIA CONDIVISA DATI----------------------------------
+    //------------------------------MEMORIA CONDIVISA DATI----------------------------------
     ssize_t sizeMemD = sizeof(struct dati);
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
     if(chiaveD == -1){
@@ -73,9 +63,8 @@ int main(int argc, char * argv[]){
         exit(1);
     }
     griglia = (char *)shmat(shmIdG, NULL, 0);
-    //-------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------
 
-    stampaMatrice(nRighe, nColonne, griglia); //stampa vuoto
     
     
     //-------------------------SEMAFORI INIT-------------------------
@@ -88,17 +77,17 @@ int main(int argc, char * argv[]){
     //sem: s, c1, c2, b, mutex, s1, s2
     if(dati->gestione[0] == 0){
         dati->gestione[0] = 1;
-        giocatore1(semIdS);
+        giocatore1(semIdS, nRighe, nColonne, griglia);
     }else if(dati->gestione[0] == 1 && dati->gestione[1] == 0){
         dati->gestione[1] = 1;
-        giocatore2(semIdS);
+        giocatore2(semIdS, nRighe, nColonne, griglia);
     }else if(dati->gestione[0] == 1 && dati->gestione[1] == 1){
         printf("ci sono già due giocatori!\n");
         exit(0);
     }
 }
 
-void giocatore1(int semIdS){
+void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia){
     //sem: s, c1, c2, b, mutex, s1, s2
     //V(sinc) -> avvisa il server che è arrivato (sblocca)
     printf("Attesa giocatore 2...\n");
@@ -114,7 +103,9 @@ void giocatore1(int semIdS){
         fflush(stdout);
         //P(mutex)
         semOp(semIdS, MUTEX, -1);
-        gioca(); //MUTUA
+
+        gioca(nRighe, nColonne, griglia); //MUTUA
+
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
 
@@ -129,17 +120,12 @@ void giocatore1(int semIdS){
     }
 }
 
-void giocatore2(int semIdS){
+void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia){
     //sem: s, c1, c2, b, mutex, s1, s2
     //V(s2) -> avvisa il server che è arrivato (sblocca)
     semOp(semIdS, SINC, 1);
     printf("giocatore 2 arrivato\n");
-
     //V(c1) //all'inzio sblocca giocatore 1
-    //semOp(semIdS, 3, 1); //1 al posto di 3
-
-    
-
     semOp(semIdS, CLIENT1, 1); 
     while(1){
         //sem: s, c1, c2, b, mutex, s1, s2
@@ -152,7 +138,9 @@ void giocatore2(int semIdS){
         //P(mutex)
         fflush(stdout);
         semOp(semIdS, MUTEX, -1);
-        gioca();
+        
+        gioca(nRighe, nColonne, griglia);
+
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
         //V(s) -> invio al server (mss queue)
@@ -163,11 +151,13 @@ void giocatore2(int semIdS){
     }
 }
 
-void gioca(){
+void gioca(int nRighe, int nColonne, char * griglia){
     int colonna = 0;
     printf("scegli mossa:\n");
+    stampa(nRighe, nColonne, griglia);
     fflush(stdout);
     scanf("%i", &colonna);
     //invia al server la scelta tramite queue
     printf("hai scelto la colonna: %i \n", colonna);
+    return 0;
 }
