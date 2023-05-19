@@ -12,6 +12,13 @@
 #include "../lib/matrixLib.h"
 #include "../lib/semaphore.h"
 
+#define SERVER 0
+#define CLIENT1 1
+#define CLIENT2 2
+#define B 3
+#define MUTEX 4
+#define SINC 5
+
 struct dati;
 
 void gioca();
@@ -73,11 +80,10 @@ int main(int argc, char * argv[]){
     
     //-------------------------SEMAFORI INIT-------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
-    int semIdS = semget(chiaveSem, 7, IPC_CREAT | S_IRUSR | S_IWUSR);
+    int semIdS = semget(chiaveSem, 6, IPC_CREAT | S_IRUSR | S_IWUSR);
     
     
     //ciclo finchè non termina il gioco (arresa/vittoria/stallo)
-    //giocatore1 e giocatore2
     
     //sem: s, c1, c2, b, mutex, s1, s2
     if(dati->gestione[0] == 0){
@@ -86,73 +92,93 @@ int main(int argc, char * argv[]){
     }else if(dati->gestione[0] == 1 && dati->gestione[1] == 0){
         dati->gestione[1] = 1;
         giocatore2(semIdS);
+    }else if(dati->gestione[0] == 1 && dati->gestione[1] == 1){
+        printf("ci sono già due giocatori!\n");
+        exit(0);
     }
 }
 
 void giocatore1(int semIdS){
     //sem: s, c1, c2, b, mutex, s1, s2
-    //V(s1) -> avvisa il server che è arrivato (sblocca)
-    semOp(semIdS, 5, 1); 
-    printf("v(s1)\n");
+    //V(sinc) -> avvisa il server che è arrivato (sblocca)
+    semOp(semIdS, SINC, 1); 
+    //printf("v(s1)\n");
 
     while(1){
-        //P(c1) //all'inzio aspetta il giocatore 2
+        //P(client1) //all'inzio aspetta il giocatore 2
         printf("Attesa giocatore 2...\n");
-        semOp(semIdS, 1, -1); 
+        semOp(semIdS, CLIENT1, -1);
+
         //P(b) -> aspetto server
         printf("Attesa server...\n");
-        semOp(semIdS, 3, -1); 
+        semOp(semIdS, B, -1); 
+        fflush(stdout);
+        
+        printf("sbloccato da server\n");
+
         //P(mutex)
-        semOp(semIdS, 4, -1);
-        printf("Scegli una mossa (pmutex)\n"); 
-        gioca();
+        semOp(semIdS, MUTEX, -1);
+        printf("sezione critica\n");
+        gioca(); //MUTUA
         //V(mutex)
-        semOp(semIdS, 4, 1);
-        printf("Invio al server...\n");
+        semOp(semIdS, MUTEX, 1);
+
+        fflush(stdout);
+        //printf("Invio al server...\n");
         //V(s) -> invio al server (mss queue)
-        semOp(semIdS, 0, 1); 
+
+        semOp(semIdS, SERVER, 1); 
+        fflush(stdout);
         printf("Attesa giocatore 2...\n");
         //V(c2)
-        semOp(semIdS, 2, 1); 
+
+        semOp(semIdS, CLIENT2, 1); 
+        fflush(stdout);
     }
 }
 
 void giocatore2(int semIdS){
     //sem: s, c1, c2, b, mutex, s1, s2
     //V(s2) -> avvisa il server che è arrivato (sblocca)
-    semOp(semIdS, 6, 1);
-    //semOp(semIdS, 7, 1); 
+    semOp(semIdS, SINC, 1);
     printf("giocatore 2 arrivato\n");
 
     //V(c1) //all'inzio sblocca giocatore 1
-    semOp(semIdS, 1, 2);
-    printf("Turno del giocatore 1...");
+    //semOp(semIdS, 3, 1); //1 al posto di 3
+    printf("Turno del giocatore 1...\n");
+    
+
+    semOp(semIdS, CLIENT1, 1); 
+    printf("giocatore 1 bloccato\n");
     while(1){
         //sem: s, c1, c2, b, mutex, s1, s2
         //P(c2) -> blocco giocatore 2, sbloccato da giocatore 1
-        printf("Attesa giocatore 1...");
-        semOp(semIdS, 2, -1);
-        //P(b) -> aspetto server
-        printf("Attesa server...");
-        semOp(semIdS, 3, -1); 
+        //printf("Attesa giocatore 1...");
+        fflush(stdout);
+        semOp(semIdS, CLIENT2, -1);
+        //P(B) -> aspetto server
+        //printf("Attesa server...");
+        semOp(semIdS, B, -1); 
+        printf("Server preso...");
         //P(mutex)
-        semOp(semIdS, 4, -1);
-        printf("Tocca a te, scegli una colonna..."); 
+        fflush(stdout);
+        semOp(semIdS, MUTEX, -1);
         gioca();
         //V(mutex)
-        semOp(semIdS, 4, 1);
+        semOp(semIdS, MUTEX, 1);
         //V(s) -> invio al server (mss queue)
-        printf("Invio al server..."); 
-        semOp(semIdS, 0, 1); 
+        //printf("Invio al server..."); 
+        semOp(semIdS, SERVER, 1); 
         //V(c1)
         printf("Attesa giocatore 1...");
-        semOp(semIdS, 1, 1); 
+        semOp(semIdS, CLIENT1, 1); 
     }
 }
 
 void gioca(){
     int colonna = 0;
     printf("scegli mossa:\n");
+    fflush(stdout);
     scanf("%i", &colonna);
     //invia al server la scelta tramite queue
     printf("hai scelto la colonna: %i \n", colonna);

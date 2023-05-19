@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <sys/sem.h>
 #include <sys/shm.h>
@@ -11,6 +12,13 @@
 #include "../lib/errExit.h"
 #include "../lib/matrixLib.h"
 #include "../lib/semaphore.h"
+
+#define SERVER 0
+#define CLIENT1 1
+#define CLIENT2 2
+#define B 3
+#define MUTEX 4
+#define SINC 5
 
 struct dati;
 union semun;
@@ -85,9 +93,9 @@ int main(int argc, char * argv[]){
     //-------------------------------------SEMAFORI---------------------------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
 
-    int semIdS = semget(chiaveSem, 7, IPC_CREAT | S_IRUSR | S_IWUSR);
-    //sem: s, c1, c2, b, mutex, s1, s2
-    int valori[] = {0, 0, 0, 1, 1, 0, 0};
+    int semIdS = semget(chiaveSem, 6, IPC_CREAT | S_IRUSR | S_IWUSR);
+    //sem:          s, c1, c2, b, mutex, sinc
+    int valori[] = {0, 0, 0, 0, 0, 0};
     union semun arg;
     arg.array = valori;
 
@@ -95,35 +103,47 @@ int main(int argc, char * argv[]){
     if (semctl(semIdS, 0, SETALL, arg) == -1){
         printf("semctl SETALL\n");
     }
-
-    //sem: s, c1, c2, b, mutex, s1, s2
-    //P(s1) -> attesa client 1
+    semOp(semIdS, MUTEX, 1);
+    semOp(semIdS, B, 1);
+    //sem: SERVER, CLIENT1, CLIENT2, B, MUTEX, sinc
     printf("Attesa giocatori...\n");
-    semOp(semIdS, 5, -1);
-
+    //P(sinc) -> attesa client 1
+    semOp(semIdS, SINC, -1);
     printf("giocatore 1 arrivato\n");
-    //P(s2) -> attesa client 2
-    semOp(semIdS, 6, -1);
-    //semOp(semIdS, 7, -1);
+
+    //P(sinc) -> attesa client 2
+    semOp(semIdS, SINC, -1); //TODO
+    fflush(stdout);
     printf("giocatore 2 arrivato\n");
 
+    printf("----------------Sincronizzazione ok------------\n");
+    //semOp(semIdS, CLIENT1, 1); //sblocca client1
+    //semOp(semIdS, SERVER, -1);
     while(1){
+        printf("entrato nel ciclo\n");
+        //semOp(semIdS, B, 1); 
+        fflush(stdout);
+        
+        //printf("sbloccato b\n");
         //P(s) -> attesa mossa giocatore, sbloccato da client
-        semOp(semIdS, 0, -1);
+        semOp(semIdS, SERVER, -1);
+
+        fflush(stdout);
         printf("mossa scelta\n");
         
         //P(mutex)
-        semOp(semIdS, 4, -1);
+        fflush(stdout);
+        semOp(semIdS, MUTEX, -1);
         printf("pedina inserita correttamente\n"); //inserimento nella tabella
-
         //V(mutex)
-        semOp(semIdS, 4, 1);
-        
+        fflush(stdout);
+        semOp(semIdS, MUTEX, 1);
+        fflush(stdout);
         //V(B) -> sblocca client
-        semOp(semIdS, 3, 1);
+        semOp(semIdS, B, 1);
         printf("attesa mossa...\n");
+        fflush(stdout);
     }
-
     
     
 }
