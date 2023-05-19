@@ -95,7 +95,7 @@ int main(int argc, char * argv[]){
 
     int semIdS = semget(chiaveSem, 6, IPC_CREAT | S_IRUSR | S_IWUSR);
     //sem:          s, c1, c2, b, mutex, sinc
-    int valori[] = {0, 0, 0, 0, 0, 0};
+    unsigned short valori[] = {0, 0, 0, 1, 1, 0};
     union semun arg;
     arg.array = valori;
 
@@ -103,8 +103,7 @@ int main(int argc, char * argv[]){
     if (semctl(semIdS, 0, SETALL, arg) == -1){
         printf("semctl SETALL\n");
     }
-    semOp(semIdS, MUTEX, 1);
-    semOp(semIdS, B, 1);
+
     //sem: SERVER, CLIENT1, CLIENT2, B, MUTEX, sinc
     printf("Attesa giocatori...\n");
     //P(sinc) -> attesa client 1
@@ -116,21 +115,14 @@ int main(int argc, char * argv[]){
     fflush(stdout);
     printf("giocatore 2 arrivato\n");
 
-    printf("----------------Sincronizzazione ok------------\n");
-    //semOp(semIdS, CLIENT1, 1); //sblocca client1
-    //semOp(semIdS, SERVER, -1);
+    printf("----------------Sincronizzazione avvenuta------------\n");
+    
     while(1){
-        printf("entrato nel ciclo\n");
-        //semOp(semIdS, B, 1); 
         fflush(stdout);
-        
-        //printf("sbloccato b\n");
         //P(s) -> attesa mossa giocatore, sbloccato da client
         semOp(semIdS, SERVER, -1);
 
         fflush(stdout);
-        printf("mossa scelta\n");
-        
         //P(mutex)
         fflush(stdout);
         semOp(semIdS, MUTEX, -1);
