@@ -187,5 +187,5 @@ void gioca(int nRighe, int nColonne, char * griglia, int msqid){
     // sending the message in the queue
     if (msgsnd(msqid, &mossa, mSize, 0) == -1)
         printf("%s", strerror(errno));
-    printf("%d\n",msqid);
+    
 }

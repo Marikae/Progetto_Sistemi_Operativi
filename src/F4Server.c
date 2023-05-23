@@ -159,7 +159,7 @@ int main(int argc, char * argv[]){
 }
 
 void gioco(int nRighe, int nColonne, char * griglia, int msqid){
-    printf("%d\n",msqid);
+    
     int colonnaScelta = 0;
     size_t mSize = sizeof(struct mossa)-sizeof(long);
     long mtype = 1;
