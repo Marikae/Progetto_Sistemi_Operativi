@@ -25,11 +25,10 @@
 #define SINC 5
 #define INS 6
 
-bool fineGioco = false;
 
 struct mossa mossa;
 
-void gioca(int nRighe, int nColonne, char * griglia, int msqid, struct dati *dati);
+void gioca(char * griglia, int msqid, struct dati *dati);
 
 void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid, struct dati *dati);
 
@@ -106,7 +105,7 @@ void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid,
     printf("Attesa giocatore 2...\n");
     semOp(semIdS, SINC, 1); 
     
-    while(1){
+    while(dati->fineGioco == 0){
         //P(client1) //all'inzio aspetta il giocatore 2
         printf("Turno del giocatore 2...\n");
         semOp(semIdS, CLIENT1, -1);
@@ -117,7 +116,7 @@ void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid,
         //P(mutex)
         semOp(semIdS, MUTEX, -1);
 
-        gioca(nRighe, nColonne, griglia, msqid, dati); //MUTUA
+        gioca(griglia, msqid, dati); //MUTUA
 
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
@@ -143,7 +142,7 @@ void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid,
     printf("giocatore 2 arrivato\n");
     //V(c1) //all'inzio sblocca giocatore 1
     semOp(semIdS, CLIENT1, 1); 
-    while(1){
+    while(dati->fineGioco == 0){
         //sem: s, c1, c2, b, mutex, s1, s2
         //P(c2) -> blocco giocatore 2, sbloccato da giocatore 1
         printf("Turno del giocatore 1...\n");
@@ -155,7 +154,7 @@ void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid,
         fflush(stdout);
         semOp(semIdS, MUTEX, -1);
         
-        gioca(nRighe, nColonne, griglia, msqid, dati);
+        gioca(griglia, msqid, dati);
 
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
@@ -170,7 +169,9 @@ void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid,
     }
 }
 
-void gioca(int nRighe, int nColonne, char * griglia, int msqid, struct dati * dati){
+void gioca(char * griglia, int msqid, struct dati * dati){
+    int nRighe = dati->nRighe;
+    int nColonne = dati->nColonne;
     int colonna = 0;
     stampa(nRighe, nColonne, griglia); //stampa mossa del giocatore precedente
     

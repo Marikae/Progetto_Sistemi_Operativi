@@ -25,10 +25,8 @@
 #define SINC 5
 #define INS 6 
 
-bool fineGioco = false;
 
 struct mossa mossa;
-
 
 void gioco(int nRighe, int nColonne, char * griglia, int msqid, char param1, char param2, struct dati * dati);
 
@@ -43,13 +41,12 @@ void controlloInput(int argc, char * argv[]){
     }
 }
 
-
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
     char param1, param2; //non serve condividerli per ora
     char *griglia;
-    
+
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
 
     //salvataggio degli input
@@ -76,6 +73,7 @@ int main(int argc, char * argv[]){
     dati->nRighe = nRighe;
     dati->gestione[0] = 0;
     dati->gestione[1] = 0;
+    dati->fineGioco = 0;
     
     //--------------------MEMORIA CONDIVISA DELLA GRIGLIA DI GIOCO-----------------------
     key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
@@ -134,10 +132,10 @@ int main(int argc, char * argv[]){
     printf("----------------Sincronizzazione avvenuta------------\n");
     
     
-            
-    while(!fineGioco){     
+    
+    while(dati->fineGioco == 0){     
         fflush(stdout);
-        if(fineGioco == true)
+        if(dati->fineGioco == true)
             break;
         //P(s) -> attesa mossa giocatore, sbloccato da client
         semOp(semIdS, SERVER, -1);
@@ -159,7 +157,7 @@ int main(int argc, char * argv[]){
         semOp(semIdS, B, 1);
         printf("attesa mossa...\n");
         fflush(stdout);
-        if(fineGioco == true)
+        if(dati->fineGioco == true)
             break;
     }
     printf("gioco finito ciao\n");
@@ -186,5 +184,5 @@ void gioco(int nRighe, int nColonne, char * griglia, int msqid, char param1, cha
     printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
     printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));
     printf("PARITA: %i\n", parita(nRighe, nColonne, griglia));
-    fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
+    dati->fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
 }   
