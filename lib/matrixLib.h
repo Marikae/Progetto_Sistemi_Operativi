@@ -18,7 +18,7 @@ void stampa(int nRighe, int nColonne, char *arr);
 
 bool vittoria_verticale(int pos, int nRighe, int nColonne, char *arr);
 
-//bool vittoria_orizzontale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr);
+bool vittoria_orizzontale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr);
 
 bool vittoria_diagonale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr);
 

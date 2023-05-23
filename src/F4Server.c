@@ -179,7 +179,7 @@ void gioco(int nRighe, int nColonne, char * griglia, int msqid){
     int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
     inserisci(pos, colonnaScelta, griglia, 'X');
     printf("VITTORIA V: %i\n", vittoria_verticale(pos, nRighe, nColonne, griglia));
-    //printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
+    printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
     printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));
     printf("PARITA: %i\n", parita(nRighe, nColonne, griglia));
     fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);

@@ -31,6 +31,16 @@ void inserisci(int pos, int colonne, char *arr, char param){
 
 };
 
+//controllo se la colonna è piena
+bool colonna_piena(int colonna_scelta, int nRighe, int nColonne, char *arr){
+    int colonna = colonna_scelta-1;
+    for(int r = nRighe; r >= 0; r--)
+        if(arr[coordinate(r, colonna, nColonne)] == ' ')
+            return false;
+    
+    return true;
+}
+
 //controllo che la colonna scelta sia valida
 bool controllo_colonna(int colonna_scelta, int colonne){
     if(colonna_scelta <= 0 || colonna_scelta > colonne)
@@ -97,23 +107,25 @@ bool vittoria_verticale(int pos, int nRighe, int nColonne, char *arr){
     else
         return false;
 };
-/*
+
 //VITTORIA ORIZZONTALE
 bool vittoria_orizzontale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
     char param = arr[pos];
     int colonna = colonna_scelta - 1;
     int count = 0;
+    int r = riga(pos, nColonne);
 
-    for(int r = riga(pos, nColonne); r < nRighe && param == arr[coordinate(r, colonna, nColonne)] && count < 3; r++)
+    for(int c = colonna + 1; c < nColonne && param == arr[coordinate(r, c,nColonne)] && count < 3; c++)
         count++;
     
-    for(int r = riga(pos, nColonne); r >= 0 && param == arr[coordinate(r, colonna, nColonne)] && count < 3; r--)
+    for(int c = colonna - 1; c >= 0 && param == arr[coordinate(r, c,nColonne)] && count < 3; c--)
         count++;
+    
     
     if(count == 3)
         return true;
     return false;
-}; */
+};
 
 int coordinate(int riga, int colonna_scelta, int nColonne){
     return riga * nColonne + colonna_scelta ;
@@ -161,8 +173,14 @@ bool vittoria_diagonale(int pos, int colonna_scelta, int nRighe, int nColonne, c
 }
 
 bool fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
-    if(vittoria_verticale(pos, nRighe, nColonne, arr) || vittoria_diagonale(pos, colonna_scelta, nRighe, nColonne, arr) || parita(nRighe, nColonne, arr))
+    if(vittoria_verticale(pos, nRighe, nColonne, arr))
         return true;
-   // if(vittoria_orizzontale(pos, colonna_scelta, nRighe, nColonne, arr))
+    if(vittoria_orizzontale(pos, colonna_scelta, nRighe, nColonne, arr))
+        return true;
+    if(vittoria_diagonale(pos, colonna_scelta, nRighe, nColonne, arr))
+        return true;
+    if(parita(nRighe, nColonne, arr))
+        return true;
+    
     return false;
-}
+};
