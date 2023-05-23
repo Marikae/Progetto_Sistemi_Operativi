@@ -2,7 +2,12 @@
     "files.associations": {
         "shared_memory.h": "c",
         "stdlib.h": "c",
-        "shm.h": "c"
+        "shm.h": "c",
+        "stat.h": "c",
+        "errno.h": "c",
+        "errexit.h": "c",
+        "matrixlib.h": "c",
+        "mossa.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
