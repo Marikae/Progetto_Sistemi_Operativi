@@ -99,24 +99,20 @@ bool vittoria_verticale(int pos, int nRighe, int nColonne, char *arr){
 };
 
 //VITTORIA ORIZZONTALE
-bool vittoria_orizzontale(int pos, int nColonne, char *arr){
+bool vittoria_orizzontale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
     char param = arr[pos];
-    int pos_riga = riga(pos, nColonne) * nColonne;
-    int count = 0, uguali = 0;
-    while(count < nColonne && uguali < 4){
-        if(param == arr[pos_riga])
-            uguali++;
-        else{ 
-            uguali = 0;
-        }
-        pos_riga++;
+    int colonna = colonna_scelta - 1;
+    int count = 0;
+
+    for(int r = riga(pos, nColonne); r < nRighe && param == arr[coordinate(r, colonna, nColonne)] && count < 3; r++)
         count++;
-    }
-    if(uguali == 4){
-        return true;
-    }
     
-    return false; 
+    for(int r = riga(pos, nColonne); r >= 0 && param == arr[coordinate(r, colonna, nColonne)] && count < 3; r--)
+        count++;
+    
+    if(count == 3)
+        return true;
+    return false;
 };
 
 int coordinate(int riga, int colonna_scelta, int nColonne){
@@ -164,10 +160,15 @@ bool vittoria_diagonale(int pos, int colonna_scelta, int nRighe, int nColonne, c
 
 }
 
-bool fine_gioco(int pos, int nRighe, int nColonne, char *arr){
+bool fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
     if(vittoria_verticale(pos, nRighe, nColonne, arr))
         return true;
-    if(vittoria_orizzontale(pos, nColonne, arr))
+    if(vittoria_orizzontale(pos, colonna_scelta, nRighe, nColonne, arr))
         return true;
+    if(vittoria_diagonale(pos, colonna_scelta, nRighe, nColonne, arr))
+        return true;
+    if(parita(nRighe, nColonne, arr))
+        return true;
+    
+    return false;
 };
-
