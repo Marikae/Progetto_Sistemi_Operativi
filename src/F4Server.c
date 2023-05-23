@@ -142,7 +142,7 @@ int main(int argc, char * argv[]){
         fflush(stdout);
         semOp(semIdS, MUTEX, -1);
         printf("pedina inserita correttamente\n"); //inserimento nella tabella
-        gioco(nRighe, nColonne, griglia, semIdS);
+        gioco(nRighe, nColonne, griglia, msqid);
         //V(mutex)
         fflush(stdout);
         semOp(semIdS, MUTEX, 1);
@@ -159,12 +159,13 @@ int main(int argc, char * argv[]){
 }
 
 void gioco(int nRighe, int nColonne, char * griglia, int msqid){
+    printf("%d\n",msqid);
     int colonnaScelta = 0;
-    size_t mSize = sizeof(struct mossa) - sizeof(long);
-
+    size_t mSize = sizeof(struct mossa)-sizeof(long);
+    long mtype = 1;
     //ricevuta del messaggio
-    if (msgrcv(msqid, &mossa, mSize, 3, IPC_NOWAIT) == -1)
-        printf("%s", strerror(errno));
+    if (msgrcv(msqid, &mossa, mSize, mtype, IPC_NOWAIT) == -1)
+        printf("%s\n", strerror(errno));
     //printf("msgrcv failed\n");
     
     colonnaScelta = mossa.colonnaScelta;

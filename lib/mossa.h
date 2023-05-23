@@ -7,7 +7,7 @@
 // client to a supplier.
 struct mossa {
     long mtype;
-    int colonnaScelta;
-}
+    unsigned int colonnaScelta;
+};
 
 #endif

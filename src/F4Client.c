@@ -167,7 +167,7 @@ void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid)
 }
 
 void gioca(int nRighe, int nColonne, char * griglia, int msqid){
-    int colonna = 0;
+    unsigned int colonna = 0;
     stampa(nRighe, nColonne, griglia); //stampa mossa del giocatore precedente
 
     fflush(stdout);
@@ -185,7 +185,7 @@ void gioca(int nRighe, int nColonne, char * griglia, int msqid){
     // size of m is only the size of its mtext attribute!
     size_t mSize = sizeof(mossa) - sizeof(long);
     // sending the message in the queue
-    if (msgsnd(msqid, &mossa, mSize, IPC_NOWAIT) == -1)
+    if (msgsnd(msqid, &mossa, mSize, 0) == -1)
         printf("%s", strerror(errno));
-    //return 0;
+    printf("%d\n",msqid);
 }
