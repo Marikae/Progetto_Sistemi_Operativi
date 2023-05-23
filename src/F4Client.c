@@ -1,16 +1,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
+#include <sys/msg.h>
 
 //nostre librerie
 #include "../lib/shared_memory.h"
 #include "../lib/errExit.h"
 #include "../lib/matrixLib.h"
 #include "../lib/semaphore.h"
+#include "../lib/mossa.h"
 
 //posizione semafori
 #define SERVER 0
@@ -19,14 +23,15 @@
 #define B 3
 #define MUTEX 4
 #define SINC 5
+#define INS 6
 
-struct dati;
+struct mossa mossa;
 
-void gioca(int nRighe, int nColonne, char * griglia);
+void gioca(int nRighe, int nColonne, char * griglia, int msqid);
 
-void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia);
+void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid);
 
-void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia);
+void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid);
 
 int main(int argc, char * argv[]){
     int nRighe;
@@ -65,11 +70,15 @@ int main(int argc, char * argv[]){
     griglia = (char *)shmat(shmIdG, NULL, 0);
     //--------------------------------------------------------------
 
-    
+    //------------------------MSG QUEUE---------------------------
+    key_t chiaveMsq = ftok("./keys/chiaveMessaggi.txt", 'a');
+    int msqid = msgget(chiaveMsq,  S_IRUSR | S_IWUSR);
+    if (msqid == -1)
+        errExit("msgget failed\n");
     
     //-------------------------SEMAFORI INIT-------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
-    int semIdS = semget(chiaveSem, 6, IPC_CREAT | S_IRUSR | S_IWUSR);
+    int semIdS = semget(chiaveSem, 7, IPC_CREAT | S_IRUSR | S_IWUSR);
     
     
     //ciclo finchè non termina il gioco (arresa/vittoria/stallo)
@@ -77,17 +86,17 @@ int main(int argc, char * argv[]){
     //sem: s, c1, c2, b, mutex, s1, s2
     if(dati->gestione[0] == 0){
         dati->gestione[0] = 1;
-        giocatore1(semIdS, nRighe, nColonne, griglia);
+        giocatore1(semIdS, nRighe, nColonne, griglia, msqid);
     }else if(dati->gestione[0] == 1 && dati->gestione[1] == 0){
         dati->gestione[1] = 1;
-        giocatore2(semIdS, nRighe, nColonne, griglia);
+        giocatore2(semIdS, nRighe, nColonne, griglia, msqid);
     }else if(dati->gestione[0] == 1 && dati->gestione[1] == 1){
         printf("ci sono già due giocatori!\n");
         exit(0);
     }
 }
 
-void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia){
+void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid){
     //sem: s, c1, c2, b, mutex, s1, s2
     //V(sinc) -> avvisa il server che è arrivato (sblocca)
     printf("Attesa giocatore 2...\n");
@@ -104,7 +113,7 @@ void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia){
         //P(mutex)
         semOp(semIdS, MUTEX, -1);
 
-        gioca(nRighe, nColonne, griglia); //MUTUA
+        gioca(nRighe, nColonne, griglia, msqid); //MUTUA
 
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
@@ -113,14 +122,17 @@ void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia){
         //printf("Invio al server...\n");
         //V(s) -> invio al server (mss queue)
         semOp(semIdS, SERVER, 1); 
+        //P(INS)
+        semOp(semIdS, INS, -1);
+        stampa(nRighe, nColonne, griglia);
         fflush(stdout);
         //V(c2)
         semOp(semIdS, CLIENT2, 1); 
         fflush(stdout);
-    }
+    };
 }
 
-void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia){
+void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid){
     //sem: s, c1, c2, b, mutex, s1, s2
     //V(s2) -> avvisa il server che è arrivato (sblocca)
     semOp(semIdS, SINC, 1);
@@ -139,25 +151,41 @@ void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia){
         fflush(stdout);
         semOp(semIdS, MUTEX, -1);
         
-        gioca(nRighe, nColonne, griglia);
+        gioca(nRighe, nColonne, griglia, msqid);
 
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
         //V(s) -> invio al server (mss queue)
         //printf("Invio al server..."); 
         semOp(semIdS, SERVER, 1); 
+        //P(INS)
+        semOp(semIdS, INS, -1);
+        stampa(nRighe, nColonne, griglia);
         //V(c1)
         semOp(semIdS, CLIENT1, 1); 
     }
 }
 
-void gioca(int nRighe, int nColonne, char * griglia){
+void gioca(int nRighe, int nColonne, char * griglia, int msqid){
     int colonna = 0;
-    printf("scegli mossa:\n");
-    stampa(nRighe, nColonne, griglia);
+    stampa(nRighe, nColonne, griglia); //stampa mossa del giocatore precedente
+
     fflush(stdout);
-    scanf("%i", &colonna);
+    do{
+        printf("scegli mossa:\n");
+        scanf("%i", &colonna);
+    }while(!controllo_colonna(colonna, nColonne));
+
     //invia al server la scelta tramite queue
     printf("hai scelto la colonna: %i \n", colonna);
-    return 0;
+    
+    mossa.mtype = 1;
+    // message contains the following numbers
+    mossa.colonnaScelta = colonna;
+    // size of m is only the size of its mtext attribute!
+    size_t mSize = sizeof(mossa) - sizeof(long);
+    // sending the message in the queue
+    if (msgsnd(msqid, &mossa, mSize, IPC_NOWAIT) == -1)
+        printf("%s", strerror(errno));
+    //return 0;
 }
