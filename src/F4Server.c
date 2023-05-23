@@ -25,6 +25,7 @@
 #define SINC 5
 #define INS 6 
 
+bool fineGioco = false;
 
 struct mossa mossa;
 
@@ -132,8 +133,12 @@ int main(int argc, char * argv[]){
 
     printf("----------------Sincronizzazione avvenuta------------\n");
     
-    while(1){
+    
+            
+    while(!fineGioco){     
         fflush(stdout);
+        if(fineGioco == true)
+            return 0;
         //P(s) -> attesa mossa giocatore, sbloccato da client
         semOp(semIdS, SERVER, -1);
 
@@ -143,6 +148,7 @@ int main(int argc, char * argv[]){
         semOp(semIdS, MUTEX, -1);
         printf("pedina inserita correttamente\n"); //inserimento nella tabella
         gioco(nRighe, nColonne, griglia, msqid);
+
         //V(mutex)
         fflush(stdout);
         semOp(semIdS, MUTEX, 1);
@@ -153,22 +159,28 @@ int main(int argc, char * argv[]){
         semOp(semIdS, B, 1);
         printf("attesa mossa...\n");
         fflush(stdout);
-    };
+        if(fineGioco == true)
+            return 0;
+    }
     
     
 }
 
 void gioco(int nRighe, int nColonne, char * griglia, int msqid){
-    
     int colonnaScelta = 0;
     size_t mSize = sizeof(struct mossa)-sizeof(long);
-    long mtype = 1;
+    
     //ricevuta del messaggio
-    if (msgrcv(msqid, &mossa, mSize, mtype, IPC_NOWAIT) == -1)
+    if (msgrcv(msqid, &mossa, mSize, 1, IPC_NOWAIT) == -1)
         printf("%s\n", strerror(errno));
     //printf("msgrcv failed\n");
     
     colonnaScelta = mossa.colonnaScelta;
     int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
     inserisci(pos, colonnaScelta, griglia, 'X');
+    printf("VITTORIA V: %i\n", vittoria_verticale(pos, nRighe, nColonne, griglia));
+    //printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
+    printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));
+    printf("PARITA: %i\n", parita(nRighe, nColonne, griglia));
+    fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
 }   

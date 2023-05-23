@@ -25,6 +25,8 @@
 #define SINC 5
 #define INS 6
 
+bool fineGioco = false;
+
 struct mossa mossa;
 
 void gioca(int nRighe, int nColonne, char * griglia, int msqid);
@@ -167,7 +169,7 @@ void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid)
 }
 
 void gioca(int nRighe, int nColonne, char * griglia, int msqid){
-    unsigned int colonna = 0;
+    int colonna = 0;
     stampa(nRighe, nColonne, griglia); //stampa mossa del giocatore precedente
 
     fflush(stdout);
@@ -187,5 +189,5 @@ void gioca(int nRighe, int nColonne, char * griglia, int msqid){
     // sending the message in the queue
     if (msgsnd(msqid, &mossa, mSize, 0) == -1)
         printf("%s", strerror(errno));
-    
+    //fineGioco = 
 }
