@@ -175,8 +175,8 @@ bool vittoria_diagonale(int pos, int colonna_scelta, int nRighe, int nColonne, c
 bool fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
     if(vittoria_verticale(pos, nRighe, nColonne, arr))
         return true;
-    if(vittoria_orizzontale(pos, colonna_scelta, nRighe, nColonne, arr))
-        return true;
+    //if(vittoria_orizzontale(pos, colonna_scelta, nRighe, nColonne, arr))
+      //  return true;
     if(vittoria_diagonale(pos, colonna_scelta, nRighe, nColonne, arr))
         return true;
     if(parita(nRighe, nColonne, arr))

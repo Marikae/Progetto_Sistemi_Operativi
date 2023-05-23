@@ -7,6 +7,8 @@
 // client to a supplier.
 struct mossa {
     long mtype;
+    
+    bool fineGioco;
     unsigned int colonnaScelta;
 };
 

@@ -30,7 +30,7 @@ bool fineGioco = false;
 struct mossa mossa;
 
 
-void gioco(int nRighe, int nColonne, char * griglia, int msqid);
+void gioco(int nRighe, int nColonne, char * griglia, int msqid, char param1, char param2, struct dati * dati);
 
 void guida(){
     printf("Inserimento non valido!\nInput atteso: ./F4Server righe colonne param1 param2\nN.B. il numero delle righe e delle colonne deve essere maggiore o uguale a 5\n");
@@ -47,7 +47,7 @@ void controlloInput(int argc, char * argv[]){
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
-    char *param1, *param2; //non serve condividerli per ora
+    char param1, param2; //non serve condividerli per ora
     char *griglia;
     
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
@@ -76,7 +76,7 @@ int main(int argc, char * argv[]){
     dati->nRighe = nRighe;
     dati->gestione[0] = 0;
     dati->gestione[1] = 0;
-
+    
     //--------------------MEMORIA CONDIVISA DELLA GRIGLIA DI GIOCO-----------------------
     key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
     if (chiaveG == -1){
@@ -138,7 +138,7 @@ int main(int argc, char * argv[]){
     while(!fineGioco){     
         fflush(stdout);
         if(fineGioco == true)
-            return 0;
+            break;
         //P(s) -> attesa mossa giocatore, sbloccato da client
         semOp(semIdS, SERVER, -1);
 
@@ -147,7 +147,7 @@ int main(int argc, char * argv[]){
         fflush(stdout);
         semOp(semIdS, MUTEX, -1);
         printf("pedina inserita correttamente\n"); //inserimento nella tabella
-        gioco(nRighe, nColonne, griglia, msqid);
+        gioco(nRighe, nColonne, griglia, msqid, param1, param2, dati);
 
         //V(mutex)
         fflush(stdout);
@@ -160,24 +160,28 @@ int main(int argc, char * argv[]){
         printf("attesa mossa...\n");
         fflush(stdout);
         if(fineGioco == true)
-            return 0;
+            break;
     }
-    
-    
+    printf("gioco finito ciao\n");
 }
 
-void gioco(int nRighe, int nColonne, char * griglia, int msqid){
+void gioco(int nRighe, int nColonne, char * griglia, int msqid, char param1, char param2, struct dati *dati){
     int colonnaScelta = 0;
     size_t mSize = sizeof(struct mossa)-sizeof(long);
     
     //ricevuta del messaggio
-    if (msgrcv(msqid, &mossa, mSize, 1, IPC_NOWAIT) == -1)
+    if (msgrcv(msqid, &mossa, mSize, 3, IPC_NOWAIT) == -1)
         printf("%s\n", strerror(errno));
-    //printf("msgrcv failed\n");
     
     colonnaScelta = mossa.colonnaScelta;
     int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
-    inserisci(pos, colonnaScelta, griglia, 'X');
+    if(dati->g1 == 1 && dati->g2 == 0){  
+        inserisci(pos, colonnaScelta, griglia, 'X');
+    }else if(dati->g2 == 1 && dati->g1 == 0){
+        inserisci(pos, colonnaScelta, griglia, 'O');
+    }
+    
+    
     printf("VITTORIA V: %i\n", vittoria_verticale(pos, nRighe, nColonne, griglia));
     printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
     printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));

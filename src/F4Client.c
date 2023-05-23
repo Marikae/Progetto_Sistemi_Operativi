@@ -29,11 +29,11 @@ bool fineGioco = false;
 
 struct mossa mossa;
 
-void gioca(int nRighe, int nColonne, char * griglia, int msqid);
+void gioca(int nRighe, int nColonne, char * griglia, int msqid, struct dati *dati);
 
-void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid);
+void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid, struct dati *dati);
 
-void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid);
+void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid, struct dati *dati);
 
 int main(int argc, char * argv[]){
     int nRighe;
@@ -84,21 +84,23 @@ int main(int argc, char * argv[]){
     
     
     //ciclo finchè non termina il gioco (arresa/vittoria/stallo)
-    
+    dati->g1 = 1;
+    dati->g2 = 0;
+
     //sem: s, c1, c2, b, mutex, s1, s2
     if(dati->gestione[0] == 0){
         dati->gestione[0] = 1;
-        giocatore1(semIdS, nRighe, nColonne, griglia, msqid);
+        giocatore1(semIdS, nRighe, nColonne, griglia, msqid, dati);
     }else if(dati->gestione[0] == 1 && dati->gestione[1] == 0){
         dati->gestione[1] = 1;
-        giocatore2(semIdS, nRighe, nColonne, griglia, msqid);
+        giocatore2(semIdS, nRighe, nColonne, griglia, msqid, dati);
     }else if(dati->gestione[0] == 1 && dati->gestione[1] == 1){
         printf("ci sono già due giocatori!\n");
         exit(0);
     }
 }
 
-void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid){
+void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid, struct dati *dati){
     //sem: s, c1, c2, b, mutex, s1, s2
     //V(sinc) -> avvisa il server che è arrivato (sblocca)
     printf("Attesa giocatore 2...\n");
@@ -115,7 +117,7 @@ void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid)
         //P(mutex)
         semOp(semIdS, MUTEX, -1);
 
-        gioca(nRighe, nColonne, griglia, msqid); //MUTUA
+        gioca(nRighe, nColonne, griglia, msqid, dati); //MUTUA
 
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
@@ -134,7 +136,7 @@ void giocatore1(int semIdS, int nRighe, int nColonne, char * griglia, int msqid)
     };
 }
 
-void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid){
+void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid, struct dati *dati){
     //sem: s, c1, c2, b, mutex, s1, s2
     //V(s2) -> avvisa il server che è arrivato (sblocca)
     semOp(semIdS, SINC, 1);
@@ -153,7 +155,7 @@ void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid)
         fflush(stdout);
         semOp(semIdS, MUTEX, -1);
         
-        gioca(nRighe, nColonne, griglia, msqid);
+        gioca(nRighe, nColonne, griglia, msqid, dati);
 
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
@@ -168,10 +170,10 @@ void giocatore2(int semIdS, int nRighe, int nColonne, char * griglia, int msqid)
     }
 }
 
-void gioca(int nRighe, int nColonne, char * griglia, int msqid){
+void gioca(int nRighe, int nColonne, char * griglia, int msqid, struct dati * dati){
     int colonna = 0;
     stampa(nRighe, nColonne, griglia); //stampa mossa del giocatore precedente
-
+    
     fflush(stdout);
     do{
         printf("scegli mossa:\n");
@@ -181,13 +183,23 @@ void gioca(int nRighe, int nColonne, char * griglia, int msqid){
     //invia al server la scelta tramite queue
     printf("hai scelto la colonna: %i \n", colonna);
     
-    mossa.mtype = 1;
+    mossa.mtype = 3;
     // message contains the following numbers
     mossa.colonnaScelta = colonna;
     // size of m is only the size of its mtext attribute!
+
     size_t mSize = sizeof(mossa) - sizeof(long);
-    // sending the message in the queue
-    if (msgsnd(msqid, &mossa, mSize, 0) == -1)
-        printf("%s", strerror(errno));
-    //fineGioco = 
+    
+    if(dati->g1 == 1){
+        if (msgsnd(msqid, &mossa, mSize, 0) == -1)
+            printf("%s", strerror(errno));
+        dati->g1 = 0;
+        dati->g2 = 1;
+    }else if(dati->g2 == 1){
+        if (msgsnd(msqid, &mossa, mSize, 0) == -1)
+            printf("%s", strerror(errno));
+        dati->g2 = 0;
+        dati->g1 = 1;
+    }
+    
 }

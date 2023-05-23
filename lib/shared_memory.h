@@ -8,6 +8,8 @@ struct dati{
     int nColonne;
     int nRighe;
     int gestione[2];
+    int g1;
+    int g2;
 };
 
 // The alloc_shared_memory method creates, if it does not exist, a shared
