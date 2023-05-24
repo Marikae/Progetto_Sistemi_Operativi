@@ -4,12 +4,11 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
-
+//librerie sys call
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <sys/msg.h>
-
 //nostre librerie
 #include "../lib/shared_memory.h"
 #include "../lib/errExit.h"
@@ -24,32 +23,25 @@
 #define MUTEX 4
 #define SINC 5
 #define INS 6 
+#define TERM 7
 
 
 struct mossa mossa;
 
-void gioco(int nRighe, int nColonne, char * griglia, int msqid, char param1, char param2, struct dati * dati);
+void gioco(char * griglia, int msqid, struct dati * dati);
 
-void guida(){
-    printf("Inserimento non valido!\nInput atteso: ./F4Server righe colonne param1 param2\nN.B. il numero delle righe e delle colonne deve essere maggiore o uguale a 5\n");
-}
-
-void controlloInput(int argc, char * argv[]){ 
-    if(argc != 5 || atoi(argv[1]) < 5 || atoi(argv[2]) < 5){
-        guida();
-        exit(1);
-    }
-}
+void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqid);
 
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
-    char param1, param2; //non serve condividerli per ora
-    char *griglia;
+    char * param1;
+    char * param2; //non serve condividerli per ora
+    char * griglia;
 
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
 
-    //salvataggio degli input
+    //salvataggio degli input - (messo sotto perchè prima controlla e poi salva)
     nRighe = atoi(argv[1]);
     nColonne = atoi(argv[2]);
     param1 = argv[3];
@@ -62,90 +54,78 @@ int main(int argc, char * argv[]){
         exit(1);
     }
     size_t sizeMemD = sizeof(struct dati);
-    
     int shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdD == -1){
         printf("Server: errore nella creazione della shm dei dati (shmget)\n");
         exit(1);
     }
     struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
+    
     dati->nColonne = nColonne;
     dati->nRighe = nRighe;
+    dati->param1 = param1;
+    dati->param2 = param2;
     dati->gestione[0] = 0;
     dati->gestione[1] = 0;
     dati->fineGioco = 0;
-    
+    dati->g1 = 0;
+    dati->g2 = 1;
+
     //--------------------MEMORIA CONDIVISA DELLA GRIGLIA DI GIOCO-----------------------
     key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
     if (chiaveG == -1){
         printf("Server: errore nella creazione della chiave della griglia di gioco\n");
         exit(1);
     }
-    
     size_t sizeMemG = nRighe * nColonne * sizeof(char);
     int shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdG == -1){
         printf("Server: Errore creazione shm griglia (shmget)\n");
         exit(1);
     }
-    //allaccio memoria
     griglia = (char *)shmat(shmIdG, NULL, 0);
-    //-----------------------------------------------------------------------------------------
     //pulizia iniziale della griglia
     for(int i = 0; i < nRighe*nColonne; i++){
         griglia[i] = ' ';
     }
     
-    
     //------------------------MSG QUEUE---------------------------
     key_t chiaveMsq = ftok("./keys/chiaveMessaggi.txt", 'a');
-    int msqid = msgget(chiaveMsq, IPC_CREAT | S_IRUSR | S_IWUSR);
-    if(msqid == -1 )
+    int msqId = msgget(chiaveMsq, IPC_CREAT | S_IRUSR | S_IWUSR);
+    if(msqId == -1 )
         printf("errore creazione msq\n");
-    //-------------------------------------------------------------
 
     //-------------------------------------SEMAFORI---------------------------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
-
-    int semIdS = semget(chiaveSem, 7, IPC_CREAT | S_IRUSR | S_IWUSR);
-    //sem:          s, c1, c2, b, mutex, sinc
-    unsigned short valori[] = {0, 0, 0, 1, 1, 0, 0};
+    int semIdS = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
+    //sem: SERVER, CLIENT1, CLIENT2, B, MUTEX, SINC, INS, TERM
+    unsigned short valori[] = {0, 0, 0, 1, 1, 0, 0, 0};
     union semun arg;
     arg.array = valori;
-
-    //inizializza i semafori
     if (semctl(semIdS, 0, SETALL, arg) == -1){
         printf("semctl SETALL\n");
     }
 
-    //sem: SERVER, CLIENT1, CLIENT2, B, MUTEX, sinc
+    //----------------------------------AVVIO GIOCO------------------------------------
+    //SINCRONIZZAZIONE SERVER/CLIENTS
     printf("Attesa giocatori...\n");
     //P(sinc) -> attesa client 1
     semOp(semIdS, SINC, -1);
-    printf("giocatore 1 arrivato\n");
-
+    printf("-> Giocatore 1 arrivato\n");
     //P(sinc) -> attesa client 2
-    semOp(semIdS, SINC, -1); //TODO
-    fflush(stdout);
-    printf("giocatore 2 arrivato\n");
-
+    semOp(semIdS, SINC, -1);
+    printf("-> Giocatore 2 arrivato\n");
     printf("----------------Sincronizzazione avvenuta------------\n");
-    
-    
-    
+
     while(dati->fineGioco == 0){     
         fflush(stdout);
-        if(dati->fineGioco == true)
-            break;
         //P(s) -> attesa mossa giocatore, sbloccato da client
         semOp(semIdS, SERVER, -1);
-
         fflush(stdout);
         //P(mutex)
-        fflush(stdout);
         semOp(semIdS, MUTEX, -1);
-        printf("pedina inserita correttamente\n"); //inserimento nella tabella
-        gioco(nRighe, nColonne, griglia, msqid, param1, param2, dati);
+
+        gioco(griglia, msqId, dati);
 
         //V(mutex)
         fflush(stdout);
@@ -155,16 +135,31 @@ int main(int argc, char * argv[]){
         fflush(stdout);
         //V(B) -> sblocca client
         semOp(semIdS, B, 1);
-        printf("attesa mossa...\n");
-        fflush(stdout);
-        if(dati->fineGioco == true)
-            break;
+        printf("Attesa mossa...\n");        
     }
-    printf("gioco finito ciao\n");
+
+    //------------------------------FINE GIOCO-----------------------
+    
+    printf("gioco finito... attesa disconnessione clients\n");
+
+
+    
+    //-------------------RIMOZIONE IPC-----------------------
+    //P(TERM)
+    semOp(semIdS, TERM, -1);
+    //P(TERM)
+    semOp(semIdS, TERM, -1);
+
+    rimozioneIpc(dati, griglia, shmIdD, shmIdG, semIdS, msqId);
+    printf("IPC rimosse\n");
+
+
 }
 
-void gioco(int nRighe, int nColonne, char * griglia, int msqid, char param1, char param2, struct dati *dati){
+void gioco(char * griglia, int msqid, struct dati *dati){
     int colonnaScelta = 0;
+    int nColonne = dati->nColonne;
+    int nRighe = dati->nRighe;
     size_t mSize = sizeof(struct mossa)-sizeof(long);
     
     //ricevuta del messaggio
@@ -174,9 +169,9 @@ void gioco(int nRighe, int nColonne, char * griglia, int msqid, char param1, cha
     colonnaScelta = mossa.colonnaScelta;
     int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
     if(dati->g1 == 1 && dati->g2 == 0){  
-        inserisci(pos, colonnaScelta, griglia, 'X');
+        inserisci(pos, colonnaScelta, griglia, dati->param1);
     }else if(dati->g2 == 1 && dati->g1 == 0){
-        inserisci(pos, colonnaScelta, griglia, 'O');
+        inserisci(pos, colonnaScelta, griglia, dati->param2);
     }
     
     
@@ -184,5 +179,16 @@ void gioco(int nRighe, int nColonne, char * griglia, int msqid, char param1, cha
     printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
     printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));
     printf("PARITA: %i\n", parita(nRighe, nColonne, griglia));
+
     dati->fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
 }   
+
+void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqid){
+    semRemove(semid);
+    freeShm(dati);
+    freeShm(griglia);
+    removeShm(shmIdG);
+    removeShm(shmIdD);
+    if (msgctl(msqid, IPC_RMID, NULL) == -1)
+        errExit("msgctl failed");
+}

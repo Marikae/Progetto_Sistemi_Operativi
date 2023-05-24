@@ -6,11 +6,17 @@
 #include <stdbool.h> 
 
 
+void controlloInput(int argc, char * argv[]);
+
+void guida();
+
 bool casella_libera(int pos, char *arr);
 
-void inserisci(int pos, int colonne, char *arr, char param);
+void inserisci(int pos, int colonne, char *arr, char * param);
 
 bool controllo_colonna(int colonna_scelta, int colonne);
+
+bool colonna_piena(int colonna_scelta, int nRighe, int nColonne, char *arr);
 
 int posizione(int colonna_scelta, int nRighe, int nColonne, char *arr);
 

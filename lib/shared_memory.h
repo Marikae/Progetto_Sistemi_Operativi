@@ -7,6 +7,8 @@
 struct dati{
     int nColonne;
     int nRighe;
+    char * param1;
+    char * param2;
     int gestione[2];
     int g1;
     int g2;
@@ -31,6 +33,6 @@ void freeShm(void *ptr_sh);
 
 // The remove_shared_memory removes a shared memory segment
 // If it does not succeed, it terminates the calling process
-void removeSHm(int shmid);
+void removeShm(int shmid);
 
 #endif
