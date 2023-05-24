@@ -16,15 +16,14 @@
 #include "../lib/semaphore.h"
 #include "../lib/mossa.h"
 
-#define SERVER 0
-#define CLIENT1 1
-#define CLIENT2 2
+#define CLIENT1 0
+#define CLIENT2 1
+#define SERVER 2
 #define B 3
 #define MUTEX 4
 #define SINC 5
-#define INS 6 
-#define TERM 7
-
+#define INS 6
+#define DISC 7
 
 struct mossa mossa;
 
@@ -65,12 +64,11 @@ int main(int argc, char * argv[]){
     dati->nRighe = nRighe;
     dati->param1 = param1;
     dati->param2 = param2;
-    dati->gestione[0] = 0;
-    dati->gestione[1] = 0;
+    dati->indirizzamento[CLIENT1] = 0;
+    dati->indirizzamento[CLIENT2] = 0;
+    dati->turno[CLIENT1] = 1;
+    dati->turno[CLIENT2] = 0;
     dati->fineGioco = 0;
-    dati->g1 = 0;
-    dati->g2 = 1;
-
     //--------------------MEMORIA CONDIVISA DELLA GRIGLIA DI GIOCO-----------------------
     key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
     if (chiaveG == -1){
@@ -98,7 +96,7 @@ int main(int argc, char * argv[]){
     //-------------------------------------SEMAFORI---------------------------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
     int semIdS = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
-    //sem: SERVER, CLIENT1, CLIENT2, B, MUTEX, SINC, INS, TERM
+    //sem: CLIENT1, CLIENT2, SERVER, B, MUTEX, SINC, INS, TERM
     unsigned short valori[] = {0, 0, 0, 1, 1, 0, 0, 0};
     union semun arg;
     arg.array = valori;
@@ -165,15 +163,20 @@ void gioco(char * griglia, int msqid, struct dati *dati){
     //ricevuta del messaggio
     if (msgrcv(msqid, &mossa, mSize, 3, IPC_NOWAIT) == -1)
         printf("%s\n", strerror(errno));
-    
     colonnaScelta = mossa.colonnaScelta;
     int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
-    if(dati->g1 == 1 && dati->g2 == 0){  
+
+    //Inserimento della pedina nella griglia (if per mettere pedina giusta)
+    if(dati->turno[CLIENT1] == 1 && dati->turno[CLIENT2] == 0){  
         inserisci(pos, colonnaScelta, griglia, dati->param1);
-    }else if(dati->g2 == 1 && dati->g1 == 0){
+    }else if(dati->turno[CLIENT2] == 1 && dati->turno[CLIENT2] == 0){
         inserisci(pos, colonnaScelta, griglia, dati->param2);
     }
     
+    //controllo se è la pedina che riempie la matrice
+    if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
+        dati->fineGioco = 2;
+    }
     
     printf("VITTORIA V: %i\n", vittoria_verticale(pos, nRighe, nColonne, griglia));
     printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));

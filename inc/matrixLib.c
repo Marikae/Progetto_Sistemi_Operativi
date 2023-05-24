@@ -144,7 +144,7 @@ int coordinate(int riga, int colonna_scelta, int nColonne){
 };
 
 //PARITA'
-bool parita(int nRighe, int nColonne, char *arr){
+bool tabella_piena(int nRighe, int nColonne, char *arr){
     for(int i = 0; i < nRighe*nColonne; i++)
         if(arr[i] == ' ')
             return false;
@@ -191,8 +191,8 @@ bool fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr
         return true;
     if(vittoria_diagonale(pos, colonna_scelta, nRighe, nColonne, arr))
         return true;
-    if(parita(nRighe, nColonne, arr))
-        return true;
+    //if(tabella_piena(nRighe, nColonne, arr))
+    //    return true;
     
     return false;
 };

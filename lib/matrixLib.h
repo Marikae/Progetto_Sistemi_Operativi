@@ -28,7 +28,7 @@ bool vittoria_orizzontale(int pos, int colonna_scelta, int nRighe, int nColonne,
 
 bool vittoria_diagonale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr);
 
-bool parita(int nRighe, int nColonne, char *arr);
+bool tabella_piena(int nRighe, int nColonne, char *arr);
 
 int coordinate(int riga, int colonna_scelta, int nColonne);
 

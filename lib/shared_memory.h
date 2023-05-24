@@ -9,9 +9,8 @@ struct dati{
     int nRighe;
     char * param1;
     char * param2;
-    int gestione[2];
-    int g1;
-    int g2;
+    int indirizzamento[2];
+    int turno[2];
     int fineGioco;
 };
 

@@ -18,9 +18,9 @@
 #include "../lib/mossa.h"
 
 //posizione semafori
-#define SERVER 0
-#define CLIENT1 1
-#define CLIENT2 2
+#define CLIENT1 0
+#define CLIENT2 1
+#define SERVER 2
 #define B 3
 #define MUTEX 4
 #define SINC 5
@@ -29,13 +29,13 @@
 
 struct mossa mossa;
 
-void gioca(char * griglia, int msqid, struct dati *dati);
+void gioca(char * griglia, int msqId, struct dati *dati);
 
-void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqid, struct dati *dati);
+void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dati *dati);
 
-void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqid, struct dati *dati);
+void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dati *dati);
 
-void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqid);
+void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqId);
 
 int main(int argc, char * argv[]){
     int nRighe;
@@ -74,8 +74,8 @@ int main(int argc, char * argv[]){
 
     //------------------------------------MSG QUEUE-------------------------------------------
     key_t chiaveMsq = ftok("./keys/chiaveMessaggi.txt", 'a');
-    int msqid = msgget(chiaveMsq,  S_IRUSR | S_IWUSR);
-    if (msqid == -1)
+    int msqId = msgget(chiaveMsq,  S_IRUSR | S_IWUSR);
+    if  msqId == -1)
         errExit("msgget failed\n");
     
     //-----------------------------------SEMAFORI INIT---------------------------------------
@@ -84,34 +84,33 @@ int main(int argc, char * argv[]){
     
     
 
-    //sem: s, c1, c2, b, mutex, s1, s2
-    if(dati->gestione[0] == 0){
-        dati->gestione[0] = 1;
-        giocatore1(argv[1], semIdS, griglia, msqid, dati);
-    }else if(dati->gestione[0] == 1 && dati->gestione[1] == 0){
-        dati->gestione[1] = 1;
-        giocatore2(argv[1], semIdS, griglia, msqid, dati);
-    }else if(dati->gestione[0] == 1 && dati->gestione[1] == 1){
+    //sem: CLIENT1, CLIENT2, SERVER, B, MUTEX, SINC, INS, TERM
+    if(dati->indirizzamento[0] == 0){
+        dati->indirizzamento[0] = 1;
+        giocatore1(argv[1], semIdS, griglia, msqId, dati);
+    }else if(dati->indirizzamento[0] == 1 && dati->indirizzamento[1] == 0){
+        dati->indirizzamento[1] = 1;
+        giocatore2(argv[1], semIdS, griglia, msqId, dati);
+    }else if(dati->indirizzamento[0] == 1 && dati->indirizzamento[1] == 1){
         printf("ci sono già due giocatori!\n");
         exit(0);
     }
 
-    if(dati->g1 == 1)
-        printf("ha vinto il giocatore 1\n");
-    else    
-        printf("ha vinto il giocatore 2\n");
+    fineGioco(dati);
     //-------------------RIMOZIONE IPC-----------------------
     //V(DISC)
     semOp(semIdS, DISC, 1);
     
 }
 
-void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqid, struct dati * dati){
+void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dati * dati){
     //sem: s, c1, c2, b, mutex, s1, s2
     //V(sinc) -> avvisa il server che è arrivato (sblocca)
+    printf("Giocatore %s: la tua pedina è questa: %x\n", nomeG1, dati->param1[0]);
     printf("Giocatore %s: Attesa giocatore 2...\n", nomeG1);
     semOp(semIdS, SINC, 1); 
     int c2arrivato = 1;
+    
     while(dati->fineGioco == 0){
         //P(client1) //all'inzio aspetta il giocatore 2
         semOp(semIdS, CLIENT1, -1);
@@ -131,7 +130,7 @@ void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqid, struct dat
         //P(mutex)
         semOp(semIdS, MUTEX, -1);
 
-        gioca(griglia, msqid, dati); //MUTUA
+        gioca(griglia, msqId, dati); //MUTUA
         
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
@@ -154,10 +153,11 @@ void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqid, struct dat
     };
     printf("---fine gioco---\n");
     stampa(dati->nRighe, dati->nColonne, griglia);
-    dati->gestione[1] = 0;
+    dati->indirizzamento[1] = 0;
 }
 
-void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqid, struct dati *dati){
+void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dati *dati){
+    printf("Giocatore %s: la tua pedina è questa: %s\n", nomeG2, dati->param2);
     //V(s2) -> avvisa il server che è arrivato (sblocca)
     semOp(semIdS, SINC, 1);
     //V(c1) //all'inzio sblocca giocatore 1
@@ -178,7 +178,7 @@ void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqid, struct dat
         fflush(stdout);
         semOp(semIdS, MUTEX, -1);
         
-        gioca(griglia, msqid, dati);
+        gioca(griglia, msqId, dati);
 
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
@@ -193,10 +193,10 @@ void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqid, struct dat
     }
     printf("---fine gioco---\n");
     stampa(dati->nRighe, dati->nColonne, griglia);
-    dati->gestione[2] = 0;
+    dati->indirizzamento[2] = 0;
 }
 
-void gioca(char * griglia, int msqid, struct dati * dati){
+void gioca(char * griglia, int msqId, struct dati * dati){
     int colonna = 0;
     stampa(dati->nRighe, dati->nColonne, griglia); //stampa mossa del giocatore precedente
     
@@ -212,25 +212,39 @@ void gioca(char * griglia, int msqid, struct dati * dati){
     mossa.mtype = 3;
     mossa.colonnaScelta = colonna;
     size_t mSize = sizeof(mossa) - sizeof(long);
-    
-    if(dati->g1 == 1){
-        dati->g1 = 0;
-        dati->g2 = 1;
-    }else if(dati->g2 == 1){
-        dati->g2 = 0;
-        dati->g1 = 1;
+
+    //--------------Turno--------------
+    if(dati->turno[CLIENT1] == 1){
+        dati->turno[CLIENT1] = 0;
+        dati->turno[CLIENT2] = 1;
+    }else if(dati->turno[CLIENT2] == 1){
+        dati->turno[CLIENT2] = 0;
+        dati->turno[CLIENT1] = 1;
     }
-    if (msgsnd(msqid, &mossa, mSize, 0) == -1)
+    //-------------invio messaggio-------------
+    if (msgsnd msqId, &mossa, mSize, 0) == -1)
         printf("%s", strerror(errno));
     
 }
 
-void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqid){
+void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqId){
     semRemove(semid);
     freeShm(dati);
     freeShm(griglia);
     removeShm(shmIdG);
     removeShm(shmIdD);
-    if (msgctl(msqid, IPC_RMID, NULL) == -1)
+    if (msgctl msqId, IPC_RMID, NULL) == -1)
         errExit("msgctl failed");
+}
+
+void fineGioco(struct dati * dati){
+    if(dati->fineGioco == 1){
+        if(dati->turno[CLIENT1] == 1 && dati->turno[CLIENT2] == 0)
+            Printf("ha vinto il giocatore 1\n");
+        else if(dati->turno[CLIENT1] == 0 && dati->turno[CLIENT2] == 1)
+            Printf("ha vinto il giocatore 2\n");
+    }
+    if(dati->fineGioco == 2){
+        Printf("Il gioco è finito in parità perchè il campo è tutto pieno\n");
+    }
 }
