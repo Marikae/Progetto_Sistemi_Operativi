@@ -4,11 +4,17 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+
 //librerie sys call
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <sys/msg.h>
+
+#include <sys/types.h>
+#include <signal.h>
+#include <sys/wait.h>
+
 //nostre librerie
 #include "../lib/shared_memory.h"
 #include "../lib/errExit.h"
@@ -30,6 +36,8 @@ struct mossa mossa;
 void gioco(char * griglia, int msqid, struct dati * dati);
 
 void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqid);
+
+void abbandono(struct dati * dati);
 
 int main(int argc, char * argv[]){
     int nRighe;
@@ -121,10 +129,10 @@ int main(int argc, char * argv[]){
         semOp(semIdS, SERVER, -1);
         fflush(stdout);
         //P(mutex)
+        abbandono(dati);
         semOp(semIdS, MUTEX, -1);
 
         gioco(griglia, msqId, dati);
-
         //V(mutex)
         fflush(stdout);
         semOp(semIdS, MUTEX, 1);
@@ -191,4 +199,11 @@ void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, in
     removeShm(shmIdD);
     if (msgctl(msqid, IPC_RMID, NULL) == -1)
         errExit("msgctl failed");
+}
+void abbandono(struct dati * dati){
+    for(int i = 0; i < 2; i++){
+        printf("pid %i\n", dati->pidClient[i]);
+        if(dati->pidClient[i] == 0)
+            kill(dati->pidClient[i], SIGKILL);
+    }
 }
