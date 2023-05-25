@@ -25,7 +25,7 @@
 #define MUTEX 4
 #define SINC 5
 #define INS 6
-#define DISC 7
+#define TERM 7
 
 struct mossa mossa;
 
@@ -75,7 +75,7 @@ int main(int argc, char * argv[]){
     //------------------------------------MSG QUEUE-------------------------------------------
     key_t chiaveMsq = ftok("./keys/chiaveMessaggi.txt", 'a');
     int msqId = msgget(chiaveMsq,  S_IRUSR | S_IWUSR);
-    if  msqId == -1)
+    if  (msqId == -1)
         errExit("msgget failed\n");
     
     //-----------------------------------SEMAFORI INIT---------------------------------------
@@ -83,7 +83,6 @@ int main(int argc, char * argv[]){
     int semIdS = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
     
     
-
     //sem: CLIENT1, CLIENT2, SERVER, B, MUTEX, SINC, INS, TERM
     if(dati->indirizzamento[0] == 0){
         dati->indirizzamento[0] = 1;
@@ -96,17 +95,26 @@ int main(int argc, char * argv[]){
         exit(0);
     }
 
-    fineGioco(dati);
+    if(dati->fineGioco == 2){
+        printf("Partita finita in parità!\n");
+    }else{
+        if(dati->turno[0] == 0){
+            printf("ha vinto il giocatore 1\n");
+        }else{
+            printf("ha vinto il giocatore 2\n");
+        }
+    }
+    
     //-------------------RIMOZIONE IPC-----------------------
     //V(DISC)
-    semOp(semIdS, DISC, 1);
+    semOp(semIdS, TERM, 1);
     
 }
 
 void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dati * dati){
     //sem: s, c1, c2, b, mutex, s1, s2
     //V(sinc) -> avvisa il server che è arrivato (sblocca)
-    printf("Giocatore %s: la tua pedina è questa: %x\n", nomeG1, dati->param1[0]);
+    printf("Giocatore %s: la tua pedina è questa: %c\n", nomeG1, dati->param1);
     printf("Giocatore %s: Attesa giocatore 2...\n", nomeG1);
     semOp(semIdS, SINC, 1); 
     int c2arrivato = 1;
@@ -119,11 +127,9 @@ void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dat
             c2arrivato = 0;
         }
 
-        if(dati->fineGioco == 1){
+        if(dati->fineGioco != 0 ){
             break;
         }
-        
-        
         //P(b) -> aspetto server
         semOp(semIdS, B, -1); 
         fflush(stdout);
@@ -156,8 +162,8 @@ void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dat
     dati->indirizzamento[1] = 0;
 }
 
-void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dati *dati){
-    printf("Giocatore %s: la tua pedina è questa: %s\n", nomeG2, dati->param2);
+void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dati * dati){
+    printf("Giocatore %s: la tua pedina è questa: %c\n", nomeG2, dati->param2);
     //V(s2) -> avvisa il server che è arrivato (sblocca)
     semOp(semIdS, SINC, 1);
     //V(c1) //all'inzio sblocca giocatore 1
@@ -168,7 +174,7 @@ void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dat
             printf("Giocatore %s: Turno del giocatore 1...\n", nomeG2);
         fflush(stdout);
         semOp(semIdS, CLIENT2, -1);
-        if(dati->fineGioco == 1){
+        if(dati->fineGioco != 0){
             break;
         }
         //P(B) -> aspetto server
@@ -222,7 +228,7 @@ void gioca(char * griglia, int msqId, struct dati * dati){
         dati->turno[CLIENT1] = 1;
     }
     //-------------invio messaggio-------------
-    if (msgsnd msqId, &mossa, mSize, 0) == -1)
+    if (msgsnd (msqId, &mossa, mSize, 0) == -1)
         printf("%s", strerror(errno));
     
 }
@@ -233,18 +239,6 @@ void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, in
     freeShm(griglia);
     removeShm(shmIdG);
     removeShm(shmIdD);
-    if (msgctl msqId, IPC_RMID, NULL) == -1)
+    if (msgctl (msqId, IPC_RMID, NULL) == -1)
         errExit("msgctl failed");
-}
-
-void fineGioco(struct dati * dati){
-    if(dati->fineGioco == 1){
-        if(dati->turno[CLIENT1] == 1 && dati->turno[CLIENT2] == 0)
-            Printf("ha vinto il giocatore 1\n");
-        else if(dati->turno[CLIENT1] == 0 && dati->turno[CLIENT2] == 1)
-            Printf("ha vinto il giocatore 2\n");
-    }
-    if(dati->fineGioco == 2){
-        Printf("Il gioco è finito in parità perchè il campo è tutto pieno\n");
-    }
 }

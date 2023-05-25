@@ -12,7 +12,7 @@ void guida();
 
 bool casella_libera(int pos, char *arr);
 
-void inserisci(int pos, int colonne, char *arr, char * param);
+void inserisci(int pos, int colonne, char *arr, char param);
 
 bool controllo_colonna(int colonna_scelta, int colonne);
 
@@ -34,7 +34,7 @@ int coordinate(int riga, int colonna_scelta, int nColonne);
 
 int riga(int pos, int nColonne);
 
-bool fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr);
+int fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr);
 
 
 #endif

@@ -23,7 +23,7 @@
 #define MUTEX 4
 #define SINC 5
 #define INS 6
-#define DISC 7
+#define TERM 7
 
 struct mossa mossa;
 
@@ -34,8 +34,8 @@ void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, in
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
-    char * param1;
-    char * param2; //non serve condividerli per ora
+    char param1;
+    char param2; //non serve condividerli per ora
     char * griglia;
 
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
@@ -43,8 +43,8 @@ int main(int argc, char * argv[]){
     //salvataggio degli input - (messo sotto perchè prima controlla e poi salva)
     nRighe = atoi(argv[1]);
     nColonne = atoi(argv[2]);
-    param1 = argv[3];
-    param2 = argv[4];
+    param1 = argv[3][0];
+    param2 = argv[4][0];
     
     //--------------------MEMORIA CONDIVISA DATI------------------------------------
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
@@ -139,8 +139,6 @@ int main(int argc, char * argv[]){
     //------------------------------FINE GIOCO-----------------------
     
     printf("gioco finito... attesa disconnessione clients\n");
-
-
     
     //-------------------RIMOZIONE IPC-----------------------
     //P(TERM)
@@ -150,8 +148,6 @@ int main(int argc, char * argv[]){
 
     rimozioneIpc(dati, griglia, shmIdD, shmIdG, semIdS, msqId);
     printf("IPC rimosse\n");
-
-
 }
 
 void gioco(char * griglia, int msqid, struct dati *dati){
@@ -169,19 +165,20 @@ void gioco(char * griglia, int msqid, struct dati *dati){
     //Inserimento della pedina nella griglia (if per mettere pedina giusta)
     if(dati->turno[CLIENT1] == 1 && dati->turno[CLIENT2] == 0){  
         inserisci(pos, colonnaScelta, griglia, dati->param1);
-    }else if(dati->turno[CLIENT2] == 1 && dati->turno[CLIENT2] == 0){
+    }else if(dati->turno[CLIENT2] == 1 && dati->turno[CLIENT1] == 0){
         inserisci(pos, colonnaScelta, griglia, dati->param2);
     }
     
     //controllo se è la pedina che riempie la matrice
     if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
+        printf("tabella piena\n");
         dati->fineGioco = 2;
     }
     
     printf("VITTORIA V: %i\n", vittoria_verticale(pos, nRighe, nColonne, griglia));
     printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
     printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));
-    printf("PARITA: %i\n", parita(nRighe, nColonne, griglia));
+    printf("PARITA: %i\n", tabella_piena(nRighe, nColonne, griglia));
 
     dati->fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
 }   

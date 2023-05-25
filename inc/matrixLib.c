@@ -22,26 +22,21 @@ bool casella_libera(int pos, char *arr){
         return true;
     else
         return false;
-};
+}
 
 //RITORNA LA RIGA IN CUI SEI
 int riga(int pos, int nColonne){
     return pos/nColonne;
-};
+}
 
 //se libera inserisco il segno, altrimenti lo inserisco nella riga sopra
 //se la posizione è uguale o minore di 0 la colonna è piena
-void inserisci(int pos, int colonne, char *arr, char * param){
-    if(pos < 0){   
-        printf("ERRORE: colonna occupata\n");   
-            return;
-    }
+void inserisci(int pos, int colonne, char *arr, char param){
     if(casella_libera(pos, arr) == true){
-        arr[pos] = * param;
+        arr[pos] = param;
     }
     else return inserisci(pos-colonne, colonne, arr, param);
-
-};
+}
 
 //controllo se la colonna è piena
 bool colonna_piena(int colonna_scelta, int nRighe, int nColonne, char *arr){
@@ -59,7 +54,7 @@ bool controllo_colonna(int colonna_scelta, int colonne){
         return false;
     else
         return true;
-};
+}
 
 //calcolo la posizione nell'array in base alla colonna scelta
 int posizione(int colonna_scelta, int nRighe, int nColonne, char *arr){
@@ -72,7 +67,7 @@ int posizione(int colonna_scelta, int nRighe, int nColonne, char *arr){
         }
         return pos;
     }
-};
+}
 
 //stampo la griglia
 void stampa(int nRighe, int nColonne, char *arr){
@@ -99,7 +94,7 @@ void stampa(int nRighe, int nColonne, char *arr){
         printf("| %d ", i);
 
     printf("|\n");
-};
+}
 
 //controllo vittoria verticale
 bool vittoria_verticale(int pos, int nRighe, int nColonne, char *arr){
@@ -118,7 +113,7 @@ bool vittoria_verticale(int pos, int nRighe, int nColonne, char *arr){
         return true;
     else
         return false;
-};
+}
 
 //VITTORIA ORIZZONTALE
 bool vittoria_orizzontale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
@@ -137,20 +132,21 @@ bool vittoria_orizzontale(int pos, int colonna_scelta, int nRighe, int nColonne,
     if(count == 3)
         return true;
     return false;
-};
+}
 
 int coordinate(int riga, int colonna_scelta, int nColonne){
     return riga * nColonne + colonna_scelta ;
-};
+}
 
 //PARITA'
 bool tabella_piena(int nRighe, int nColonne, char *arr){
-    for(int i = 0; i < nRighe*nColonne; i++)
-        if(arr[i] == ' ')
+    for(int i = 0; i < nRighe*nColonne; i++){
+        if(arr[i] == ' '){
             return false;
-    
+        }
+    }
     return true;
-};
+}
 
 bool vittoria_diagonale(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
     char param = arr[pos];
@@ -184,15 +180,14 @@ bool vittoria_diagonale(int pos, int colonna_scelta, int nRighe, int nColonne, c
 
 }
 
-bool fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
-    if(vittoria_verticale(pos, nRighe, nColonne, arr))
-        return true;
-    if(vittoria_orizzontale(pos, colonna_scelta, nRighe, nColonne, arr))
-        return true;
-    if(vittoria_diagonale(pos, colonna_scelta, nRighe, nColonne, arr))
-        return true;
-    //if(tabella_piena(nRighe, nColonne, arr))
-    //    return true;
-    
-    return false;
-};
+int fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr){
+    if(vittoria_verticale(pos, nRighe, nColonne, arr) == true)
+        return 1;
+    if(vittoria_orizzontale(pos, colonna_scelta, nRighe, nColonne, arr) == true)
+        return 1;
+    if(vittoria_diagonale(pos, colonna_scelta, nRighe, nColonne, arr) == true)
+        return 1;
+    if(tabella_piena(nRighe, nColonne, arr) == true)
+        return 2;
+    return 0;
+}
