@@ -10,7 +10,6 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <sys/msg.h>
-
 #include <sys/types.h>
 #include <signal.h>
 #include <sys/wait.h>
@@ -43,7 +42,7 @@ int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
     char param1;
-    char param2; //non serve condividerli per ora
+    char param2;
     char * griglia;
 
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
@@ -57,17 +56,16 @@ int main(int argc, char * argv[]){
     //--------------------MEMORIA CONDIVISA DATI------------------------------------
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
     if(chiaveD == -1){
-        printf("Server: errore nella creazione della chiave dei Dati\n");
-        exit(1);
+        errExit("Server: errore nella creazione della chiave dei Dati\n");
     }
     size_t sizeMemD = sizeof(struct dati);
     int shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdD == -1){
-        printf("Server: errore nella creazione della shm dei dati (shmget)\n");
-        exit(1);
+        errExit("Server: errore nella creazione shm dati\n");
     }
     struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
     
+    //riempimento memoria condivisa
     dati->nColonne = nColonne;
     dati->nRighe = nRighe;
     dati->param1 = param1;
@@ -77,39 +75,49 @@ int main(int argc, char * argv[]){
     dati->turno[CLIENT1] = 1;
     dati->turno[CLIENT2] = 0;
     dati->fineGioco = 0;
+
     //--------------------MEMORIA CONDIVISA DELLA GRIGLIA DI GIOCO-----------------------
     key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
     if (chiaveG == -1){
-        printf("Server: errore nella creazione della chiave della griglia di gioco\n");
-        exit(1);
+        errExit("Server: errore nella creazione della chiave della griglia di gioco\n");
     }
     size_t sizeMemG = nRighe * nColonne * sizeof(char);
     int shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdG == -1){
-        printf("Server: Errore creazione shm griglia (shmget)\n");
-        exit(1);
+        errExit("Server: Errore creazione shm griglia\n");
     }
     griglia = (char *)shmat(shmIdG, NULL, 0);
-    //pulizia iniziale della griglia
+    //pulizia iniziale della griglia da caratteri inderiderati
     for(int i = 0; i < nRighe*nColonne; i++){
         griglia[i] = ' ';
     }
     
     //------------------------MSG QUEUE---------------------------
     key_t chiaveMsq = ftok("./keys/chiaveMessaggi.txt", 'a');
+    if(chiaveMsq == -1){
+        errExit("Server: errore crezione chiave della msg queue\n");
+    }
     int msqId = msgget(chiaveMsq, IPC_CREAT | S_IRUSR | S_IWUSR);
-    if(msqId == -1 )
-        printf("errore creazione msq\n");
+    if(msqId == -1 ){
+        errExit("Server: errore crezione msg queue\n");
+    }
 
     //-------------------------------------SEMAFORI---------------------------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
+    if(chiaveSem == -1){
+        errExit("Server: errore crezione chiave semafori\n");
+    }
     int semIdS = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
+    if(semIdS == -1){
+        errExit("Server: errore crezione semafori\n");
+    }
+
     //sem: CLIENT1, CLIENT2, SERVER, B, MUTEX, SINC, INS, TERM
     unsigned short valori[] = {0, 0, 0, 1, 1, 0, 0, 0};
     union semun arg;
     arg.array = valori;
     if (semctl(semIdS, 0, SETALL, arg) == -1){
-        printf("semctl SETALL\n");
+        errExit("Server: errore inizializzazione semafori\n");
     }
 
     //----------------------------------AVVIO GIOCO------------------------------------
