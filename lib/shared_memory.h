@@ -11,7 +11,7 @@ struct dati{
     char param2;
     int indirizzamento[2];
     int turno[2];
-    pid_t pidClient[2];
+    int pidClient[2];
     int fineGioco;
 };
 

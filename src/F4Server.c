@@ -37,7 +37,7 @@ void gioco(char * griglia, int msqid, struct dati * dati);
 
 void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqid);
 
-void abbandono(struct dati * dati);
+int abbandonoClient(struct dati * dati);
 
 int main(int argc, char * argv[]){
     int nRighe;
@@ -128,8 +128,12 @@ int main(int argc, char * argv[]){
         //P(s) -> attesa mossa giocatore, sbloccato da client
         semOp(semIdS, SERVER, -1);
         fflush(stdout);
+        printf("server sbloccato \n");
         //P(mutex)
-        abbandono(dati);
+        if(abbandonoClient(dati) == 1){
+            rimozioneIpc(dati, griglia, shmIdD, shmIdG, semIdS, msqId);
+            exit(0);
+        }
         semOp(semIdS, MUTEX, -1);
 
         gioco(griglia, msqId, dati);
@@ -200,10 +204,16 @@ void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, in
     if (msgctl(msqid, IPC_RMID, NULL) == -1)
         errExit("msgctl failed");
 }
-void abbandono(struct dati * dati){
-    for(int i = 0; i < 2; i++){
-        printf("pid %i\n", dati->pidClient[i]);
-        if(dati->pidClient[i] == 0)
-            kill(dati->pidClient[i], SIGKILL);
+
+int abbandonoClient(struct dati * dati){
+    if(dati->pidClient[CLIENT1] == 0){
+        kill(dati->pidClient[CLIENT2], SIGKILL);
+        printf("partita finita per abbandono del giocatore 1\n");
+        return 1;
+    }else if(dati->pidClient[CLIENT2] == 0){
+        kill(dati->pidClient[CLIENT1], SIGKILL);
+        printf("partita finita per abbandono del giocatore 2\n");
+        return 1;
     }
+    return 0;
 }
