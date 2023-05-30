@@ -153,18 +153,15 @@ void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dat
         semOp(semIdS, MUTEX, -1);
         
         gioca(griglia, msqId, dati); //MUTUA
-        //abbandonoClient(dati);
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
         fflush(stdout);
         //V(s) -> invio al server (mss queue)
         semOp(semIdS, SERVER, 1); 
         //P(INS)
-        //abbandonoClient(dati);
         semOp(semIdS, INS, -1);
         stampa(dati->nRighe, dati->nColonne, griglia);
         fflush(stdout);
-        //abbandonoClient(dati);
         //V(c2)
         semOp(semIdS, CLIENT2, 1); 
         fflush(stdout);
@@ -175,7 +172,6 @@ void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dat
     };
     printf("---fine gioco---\n");
     stampa(dati->nRighe, dati->nColonne, griglia);
-    //dati->indirizzamento[1] = 0;
 }
 
 void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dati * dati){
@@ -191,24 +187,18 @@ void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dat
         if(dati->fineGioco == 0)
             printf("Giocatore %s: Turno del giocatore 1...\n", nomeG2);
         fflush(stdout);
-        //---------------------------------------------
         abbandonoClient(dati);
-        //------>
-        semOp(semIdS, CLIENT2, -1);
-        //abbandonoClient(dati);
-        
+        semOp(semIdS, CLIENT2, -1);        
         if(dati->fineGioco != 0){
             break;
         }
         //P(B) -> aspetto server
         semOp(semIdS, B, -1);
-        //abbandonoClient(dati);
         //P(mutex)
         fflush(stdout);
         semOp(semIdS, MUTEX, -1);
         fflush(stdin);
         gioca(griglia, msqId, dati);
-
         //V(mutex)
         semOp(semIdS, MUTEX, 1);
         //V(s) -> invio al server (mss queue)
@@ -219,11 +209,8 @@ void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dat
         //V(c1)
         semOp(semIdS, CLIENT1, 1); 
     }
-
-
     printf("---fine gioco---\n");
     stampa(dati->nRighe, dati->nColonne, griglia);
-    //dati->indirizzamento[2] = 0;
 }
 
 void gioca(char * griglia, int msqId, struct dati * dati){
@@ -280,11 +267,9 @@ void sigHandler(int sig) {
     if(getpid() == dati->pidClient[CLIENT1]){
         dati->pidClient[CLIENT1] = 0;
         fflush(stdout);
-        //printf("%i\n", dati->pidClient[CLIENT1]);
     }else if(getpid() == dati->pidClient[CLIENT2]){
         dati->pidClient[CLIENT2] = 0;
         fflush(stdout);
-        //printf("%i\n", dati->pidClient[CLIENT2]);
     }
     //V(SERVER)
     semOp(semIdS, SERVER, 1); 

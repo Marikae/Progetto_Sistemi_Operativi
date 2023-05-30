@@ -211,7 +211,7 @@ void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, in
     removeShm(shmIdG);
     removeShm(shmIdD);
     if (msgctl(msqid, IPC_RMID, NULL) == -1)
-        errExit("msgctl failed");
+        errExit("Server: rimozione msg queue fallita");
 }
 
 int abbandonoClient(struct dati * dati){
