@@ -276,7 +276,7 @@ void abbandonoClient(struct dati * dati){
 }
 
 void sigHandler(int sig) {
-    printf("Hai abbandonato la partita\n");
+    printf("\nHai abbandonato la partita\n");
     if(getpid() == dati->pidClient[CLIENT1]){
         dati->pidClient[CLIENT1] = 0;
         fflush(stdout);
