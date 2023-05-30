@@ -125,6 +125,7 @@ int main(int argc, char * argv[]){
     printf("Attesa giocatori...\n");
     //P(sinc) -> attesa client 1
     semOp(semIdS, SINC, -1);
+    
     printf("-> Giocatore 1 arrivato\n");
     //P(sinc) -> attesa client 2
     semOp(semIdS, SINC, -1);
@@ -215,11 +216,11 @@ void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, in
 
 int abbandonoClient(struct dati * dati){
     if(dati->pidClient[CLIENT1] == 0){
-        kill(dati->pidClient[CLIENT2], SIGKILL);
+        kill(dati->pidClient[CLIENT2], SIGUSR1);
         printf("partita finita per abbandono del giocatore 1\n");
         return 1;
     }else if(dati->pidClient[CLIENT2] == 0){
-        kill(dati->pidClient[CLIENT1], SIGKILL);
+        kill(dati->pidClient[CLIENT1], SIGUSR1);
         printf("partita finita per abbandono del giocatore 2\n");
         return 1;
     }
