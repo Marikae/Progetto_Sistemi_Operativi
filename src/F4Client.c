@@ -49,7 +49,12 @@ void sigHandler(int sig);
 
 void sigHandler2(int sig);
 
+void sigHandlerServer(int sig);
+
 void abbandonoClient(struct dati * dati);
+
+void abbandonoServer(struct dati * dati);
+
 
 void pulisciInput(FILE *const in);
 
@@ -137,6 +142,7 @@ void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dat
     while(dati->fineGioco == 0){
         //P(client1) //all'inzio aspetta il giocatore 2
         abbandonoClient(dati); //se si abbandona mentre è il turno dell'altro giocatore
+        abbandonoServer(dati); 
         semOp(semIdS, CLIENT1, -1);
         if(c2arrivato == 1){
             printf("Giocatore 2 arrivato\n");
@@ -188,6 +194,7 @@ void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dat
             printf("Giocatore %s: Turno del giocatore 1...\n", nomeG2);
         fflush(stdout);
         abbandonoClient(dati);
+        abbandonoServer(dati);
         semOp(semIdS, CLIENT2, -1);        
         if(dati->fineGioco != 0){
             break;
@@ -218,6 +225,7 @@ void gioca(char * griglia, int msqId, struct dati * dati){
     stampa(dati->nRighe, dati->nColonne, griglia); //stampa mossa del giocatore precedente
 
     fflush(stdout);
+    abbandonoServer(dati);
     do{
         pulisciInput(stdin);
         printf("scegli mossa:\n");
@@ -262,6 +270,18 @@ void abbandonoClient(struct dati * dati){
         errExit("change signal handler failed");
 }
 
+void abbandonoServer(struct dati * dati){
+    if (signal(SIGUSR2, sigHandlerServer) == SIG_ERR)
+        errExit("change signal handler failed");
+}
+
+void sigHandlerServer(int sig){
+    printf("il server ha terminato il gioco\n");
+    semOp(semIdS, TERM, 1);
+    
+    exit(0);
+}
+
 void sigHandler(int sig) {
     printf("\nHai abbandonato la partita\n");
     if(getpid() == dati->pidClient[CLIENT1]){
@@ -298,11 +318,13 @@ void pulisciInput(FILE * const in){
 void fineGioco(){
     if(dati->fineGioco == 2){
         printf("Partita finita in parità!\n");
-    }else{
+    }else if(dati->fineGioco == 3){
         if(dati->turno[CLIENT1] == 0){
             printf("ha vinto il giocatore 1\n");
         }else{
             printf("ha vinto il giocatore 2\n");
         }
+    }else if(dati->fineGioco == 4){
+        printf("Server disconnesso\n");
     }
 }

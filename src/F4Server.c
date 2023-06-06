@@ -32,18 +32,34 @@
 
 struct mossa mossa;
 
-void gioco(char * griglia, int msqid, struct dati * dati);
+void gioco(char * griglia, int I, struct dati * dati);
 
-void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqid);
+void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semId, int msqId);
 
 int abbandonoClient(struct dati * dati);
+
+void abbadonoServer();
+
+void sigHandler(int sig);
+
+void sigHandler2(int sig);
+
+int abbandono = 0;
+
+
+struct dati * dati;
+char * griglia;
+int shmIdD;
+int shmIdG; 
+int semId;
+int msqId;
 
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
     char param1;
     char param2;
-    char * griglia;
+
 
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
 
@@ -59,11 +75,11 @@ int main(int argc, char * argv[]){
         errExit("Server: errore nella creazione della chiave dei Dati\n");
     }
     size_t sizeMemD = sizeof(struct dati);
-    int shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
+    shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdD == -1){
         errExit("Server: errore nella creazione shm dati\n");
     }
-    struct dati * dati = (struct dati *)shmat(shmIdD, NULL, 0);
+    dati = (struct dati *)shmat(shmIdD, NULL, 0);
     
     //riempimento memoria condivisa
     dati->nColonne = nColonne;
@@ -82,7 +98,7 @@ int main(int argc, char * argv[]){
         errExit("Server: errore nella creazione della chiave della griglia di gioco\n");
     }
     size_t sizeMemG = nRighe * nColonne * sizeof(char);
-    int shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR);
+    shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdG == -1){
         errExit("Server: Errore creazione shm griglia\n");
     }
@@ -97,7 +113,7 @@ int main(int argc, char * argv[]){
     if(chiaveMsq == -1){
         errExit("Server: errore crezione chiave della msg queue\n");
     }
-    int msqId = msgget(chiaveMsq, IPC_CREAT | S_IRUSR | S_IWUSR);
+    msqId = msgget(chiaveMsq, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(msqId == -1 ){
         errExit("Server: errore crezione msg queue\n");
     }
@@ -107,8 +123,8 @@ int main(int argc, char * argv[]){
     if(chiaveSem == -1){
         errExit("Server: errore crezione chiave semafori\n");
     }
-    int semIdS = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
-    if(semIdS == -1){
+    semId = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
+    if(semId == -1){
         errExit("Server: errore crezione semafori\n");
     }
 
@@ -116,7 +132,7 @@ int main(int argc, char * argv[]){
     unsigned short valori[] = {0, 0, 0, 1, 1, 0, 0, 0};
     union semun arg;
     arg.array = valori;
-    if (semctl(semIdS, 0, SETALL, arg) == -1){
+    if (semctl(semId, 0, SETALL, arg) == -1){
         errExit("Server: errore inizializzazione semafori\n");
     }
 
@@ -124,37 +140,38 @@ int main(int argc, char * argv[]){
     //SINCRONIZZAZIONE SERVER/CLIENTS
     printf("Attesa giocatori...\n");
     //P(sinc) -> attesa client 1
-    semOp(semIdS, SINC, -1);
+    semOp(semId, SINC, -1);
     
     printf("-> Giocatore 1 arrivato\n");
     //P(sinc) -> attesa client 2
-    semOp(semIdS, SINC, -1);
+    semOp(semId, SINC, -1);
     printf("-> Giocatore 2 arrivato\n");
     printf("----------------Sincronizzazione avvenuta------------\n");
 
-    while(dati->fineGioco == 0){     
+    while(dati->fineGioco == 0){   
+        abbadonoServer();
         fflush(stdout);
         //P(s) -> attesa mossa giocatore, sbloccato da client
-        semOp(semIdS, SERVER, -1);
+        semOp(semId, SERVER, -1);
+
         fflush(stdout);
         printf("server sbloccato \n");
         //P(mutex)
-        if(abbandonoClient(dati) == 1){
-            rimozioneIpc(dati, griglia, shmIdD, shmIdG, semIdS, msqId);
+        if(abbandonoClient(dati) == 2){
+            rimozioneIpc(dati, griglia, shmIdD, shmIdG, semId, msqId);
             exit(0);
         }
-        semOp(semIdS, MUTEX, -1);
-
+        semOp(semId, MUTEX, -1);
         gioco(griglia, msqId, dati);
         //V(mutex)
         fflush(stdout);
-        semOp(semIdS, MUTEX, 1);
+        semOp(semId, MUTEX, 1);
         //V(INS)
-        semOp(semIdS, INS, 1);
+        semOp(semId, INS, 1);
         fflush(stdout);
         //V(B) -> sblocca client
-        semOp(semIdS, B, 1);
-        printf("Attesa mossa...\n");        
+        semOp(semId, B, 1);
+        printf("Attesa mossa...\n"); 
     }
 
     //------------------------------FINE GIOCO-----------------------
@@ -163,22 +180,21 @@ int main(int argc, char * argv[]){
     
     //-------------------RIMOZIONE IPC-----------------------
     //P(TERM)
-    semOp(semIdS, TERM, -1);
+    semOp(semId, TERM, -1);
     //P(TERM)
-    semOp(semIdS, TERM, -1);
+    semOp(semId, TERM, -1);
 
-    rimozioneIpc(dati, griglia, shmIdD, shmIdG, semIdS, msqId);
+    rimozioneIpc(dati, griglia, shmIdD, shmIdG, semId, msqId);
     printf("IPC rimosse\n");
 }
 
-void gioco(char * griglia, int msqid, struct dati *dati){
+void gioco(char * griglia, int I, struct dati *dati){
     int colonnaScelta = 0;
     int nColonne = dati->nColonne;
     int nRighe = dati->nRighe;
     size_t mSize = sizeof(struct mossa)-sizeof(long);
-    
     //ricevuta del messaggio
-    if (msgrcv(msqid, &mossa, mSize, 3, IPC_NOWAIT) == -1)
+    if (msgrcv(I, &mossa, mSize, 3, IPC_NOWAIT) == -1)
         printf("%s\n", strerror(errno));
     colonnaScelta = mossa.colonnaScelta;
     int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
@@ -204,13 +220,13 @@ void gioco(char * griglia, int msqid, struct dati *dati){
     dati->fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
 }   
 
-void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqid){
-    semRemove(semid);
+void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semId, int msqId){
+    semRemove(semId);
     freeShm(dati);
     freeShm(griglia);
     removeShm(shmIdG);
     removeShm(shmIdD);
-    if (msgctl(msqid, IPC_RMID, NULL) == -1)
+    if (msgctl(msqId, IPC_RMID, NULL) == -1)
         errExit("Server: rimozione msg queue fallita");
 }
 
@@ -225,4 +241,32 @@ int abbandonoClient(struct dati * dati){
         return 1;
     }
     return 0;
+}
+
+void abbadonoServer(){
+    if (signal(SIGINT, sigHandler) == SIG_ERR){
+        printf("errore signal\n");
+        errExit("change signal handler failed");
+    }
+}
+
+void sigHandler(int sig){
+    if(abbandono == 0){
+        sigset_t mySet;
+        sigfillset(&mySet);
+        sigdelset(&mySet, SIGINT);
+        abbandono = 1;
+        printf("\nal prossimo ctrl c il gioco terminerà\n");
+        sigsuspend(&mySet);
+        printf("\n---gioco terminato---\n");
+        
+
+        kill(dati->pidClient[CLIENT1], SIGUSR2);
+        kill(dati->pidClient[CLIENT2], SIGUSR2);
+        semOp(semId, TERM, -1);
+        semOp(semId, TERM, -1);
+        rimozioneIpc(dati, griglia, shmIdD, shmIdG, semId, msqId);
+        exit(0);
+    }
+    
 }
