@@ -6,14 +6,30 @@
 
 
 void controlloInput(int argc, char * argv[]){ 
-    if(argc != 5 || atoi(argv[1]) < 5 || atoi(argv[2]) < 5){
+    if(argc < 5){
+        printf("Inserimento non valido: numero di elementi inseriti non sufficiente\n");
+        guida();
+        exit(1);
+    }else if(atoi(argv[2]) < 5 && atoi(argv[1]) < 5 ){
+        printf("Inserimento non valido: numero righe e colonne minore di 5\n");
+        guida();
+        exit(1);
+    }else if(atoi(argv[1]) < 5){
+        printf("Inserimento non valido: numero righe minore di 5\n");
+        guida();
+        exit(1);
+    }else if(atoi(argv[2]) < 5){
+        printf("Inserimento non valido: numero delle colonne minore di 5\n");
         guida();
         exit(1);
     }
 }
 
 void guida(){
-    printf("Inserimento non valido!\nInput atteso: ./F4Server righe colonne param1 param2\nN.B. il numero delle righe e delle colonne deve essere maggiore o uguale a 5\n");
+    printf("  ----------------------------Guida all'inserimento--------------------------\n");
+    printf("  | Input atteso: ./F4Server #righe #colonne pedina1 pedina2                |\n");
+    printf("  | Il numero delle righe e delle colonne deve essere maggiore o uguale a 5 |\n");
+    printf("  ---------------------------------------------------------------------------\n");
 }
 
 //controllo se la casella è libera
