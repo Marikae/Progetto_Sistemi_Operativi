@@ -27,7 +27,10 @@ void controlloInput(int argc, char * argv[]){
 
 void guida(){
     printf("  ----------------------------Guida all'inserimento--------------------------\n");
-    printf("  | Input atteso: ./F4Server #righe #colonne pedina1 pedina2                |\n");
+    printf("  | Input atteso:                                                           |\n");
+    printf("  |                ./F4Server #RIGHE #COLONNE PEDINA1 PEDINA2               |\n");
+    printf("  | -> Inserire in PEDINA1 la pedina che utilizzerà il giocatore 1          |\n");
+    printf("  | -> Inserire in PEDINA2 la pedina che utilizzerà il giocatore 2          |\n");
     printf("  | Il numero delle righe e delle colonne deve essere maggiore o uguale a 5 |\n");
     printf("  ---------------------------------------------------------------------------\n");
 }
