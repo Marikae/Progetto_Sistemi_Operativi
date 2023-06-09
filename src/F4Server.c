@@ -64,7 +64,7 @@ int main(int argc, char * argv[]){
     pedina1 = argv[3][0];
     pedina2 = argv[4][0];
     
-    //--------------------MEMORIA CONDIVISA DATI------------------------------------
+    //-----------------------------------MEMORIA CONDIVISA DATI------------------------------------------
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
     if(chiaveD == -1){
         errExit("Server: errore nella creazione della chiave dei Dati\n");
@@ -87,7 +87,7 @@ int main(int argc, char * argv[]){
     dati->turno[CLIENT2] = 0;
     dati->fineGioco = 0;
 
-    //--------------------MEMORIA CONDIVISA DELLA GRIGLIA DI GIOCO-----------------------
+    //---------------------------MEMORIA CONDIVISA DELLA GRIGLIA DI GIOCO--------------------------------
     key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
     if (chiaveG == -1){
         errExit("Server: errore nella creazione della chiave della griglia di gioco\n");
@@ -103,7 +103,7 @@ int main(int argc, char * argv[]){
         griglia[i] = ' ';
     }
     
-    //------------------------MSG QUEUE---------------------------
+    //------------------------------------------MSG QUEUE-----------------------------------------------
     key_t chiaveMsq = ftok("./keys/chiaveMessaggi.txt", 'a');
     if(chiaveMsq == -1){
         errExit("Server: errore crezione chiave della msg queue\n");
@@ -113,7 +113,7 @@ int main(int argc, char * argv[]){
         errExit("Server: errore crezione msg queue\n");
     }
 
-    //-------------------------------------SEMAFORI---------------------------------------------
+    //------------------------------------------SEMAFORI---------------------------------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
     if(chiaveSem == -1){
         errExit("Server: errore crezione chiave semafori\n");
@@ -131,7 +131,7 @@ int main(int argc, char * argv[]){
         errExit("Server: errore inizializzazione semafori\n");
     }
 
-    //----------------------------------AVVIO GIOCO------------------------------------
+    //-----------------------------------------AVVIO GIOCO----------------------------------------------
     //SINCRONIZZAZIONE SERVER/CLIENTS
     printf("Attesa giocatori...\n");
     //P(sinc) -> attesa client 1
@@ -168,12 +168,9 @@ int main(int argc, char * argv[]){
         semOp(semId, B, 1);
         printf("Attesa mossa...\n"); 
     }
-
-    //------------------------------FINE GIOCO-----------------------
-    
+    //--------------------------------------FINE GIOCO-------------------------------------------------
     printf("gioco finito... attesa disconnessione clients\n");
-    
-    //-------------------RIMOZIONE IPC-----------------------
+    //--------------------------------------RIMOZIONE IPC----------------------------------------------
     //P(TERM)
     semOp(semId, TERM, -1);
     //P(TERM)
@@ -194,25 +191,21 @@ void gioco(){
     if(mossa.colonnaScelta != -1){
         colonnaScelta = mossa.colonnaScelta;
         int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
-
         //Inserimento della pedina nella griglia (if per mettere pedina giusta)
         if(dati->turno[CLIENT1] == 1 && dati->turno[CLIENT2] == 0){  
             inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT1]);
         }else if(dati->turno[CLIENT2] == 1 && dati->turno[CLIENT1] == 0){
             inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT2]);
         }
-    
         //controllo se è la pedina che riempie la matrice
         if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
             printf("tabella piena\n");
             dati->fineGioco = 2;
         }
-        
         printf("VITTORIA V: %i\n", vittoria_verticale(pos, nRighe, nColonne, griglia));
         printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
         printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));
         printf("PARITA: %i\n", tabella_piena(nRighe, nColonne, griglia));
-
         dati->fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
     }else{
         printf("turno saltato\n");

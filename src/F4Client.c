@@ -32,7 +32,7 @@
 #define TERM 7
 
 //Variabili globali
-#define TEMPO 30
+#define TEMPO 4
 struct mossa mossa;
 struct dati * dati;
 char * griglia;
@@ -45,6 +45,7 @@ int msqId;
 void gioca();
 void giocatore1(char * nomeG1);
 void giocatore2(char * nomeG2);
+void giocoAutomatico();
 void rimozioneIpc();
 void sigHandlerAbbandono(int sig);
 void sigHandler2(int sig);
@@ -102,10 +103,13 @@ int main(int argc, char * argv[]){
     }
     
     //indirizzamento dei processi nelle rispettive funzioni
-    
     if(dati->indirizzamento[CLIENT1] == 0){//arriva client 1
-        dati->indirizzamento[CLIENT1] = 1;
-        giocatore1(argv[1]);
+        if(argc < 3){
+            dati->indirizzamento[CLIENT1] = 1;
+            giocatore1(argv[1]);
+        }else{
+            giocoAutomatico();
+        }
     }else if(dati->indirizzamento[CLIENT1] == 1 && dati->indirizzamento[CLIENT2] == 0){ //arriva client 2
         dati->indirizzamento[CLIENT1] = 1;
         giocatore2(argv[1]);
@@ -116,9 +120,9 @@ int main(int argc, char * argv[]){
     
     fineGioco();
     //-------------------RIMOZIONE IPC-----------------------
+    //le IPC vengono rimosse dal server
     //V(DISC)
     semOp(semId, TERM, 1);
-    
 }
 
 void giocatore1(char * nomeG1){
@@ -341,3 +345,5 @@ void fineGioco(){
         printf("Server disconnesso\n");
     }
 }
+
+void giocoAutomatico(){}
