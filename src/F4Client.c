@@ -37,6 +37,8 @@ struct dati * dati;
 
 int semIdS;
 
+int saltaTurno;
+
 void gioca(char * griglia, int msqId, struct dati *dati);
 
 void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dati *dati);
@@ -55,6 +57,7 @@ void abbandonoClient(struct dati * dati);
 
 void abbandonoServer(struct dati * dati);
 
+void sigHandlertempo(int sig);
 
 void pulisciInput(FILE *const in);
 
@@ -221,24 +224,27 @@ void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dat
 }
 
 void gioca(char * griglia, int msqId, struct dati * dati){
-    int colonna = 0;
+    int colonna = -1;
     stampa(dati->nRighe, dati->nColonne, griglia); //stampa mossa del giocatore precedente
 
     fflush(stdout);
     abbandonoServer(dati);
+    if (signal(SIGALRM, sigHandlertempo) == SIG_ERR)
+        errExit("change signal handler failed");
+    
+    int tempo = 5;
+    alarm(tempo); // setting a tempo
+    printf("Hai %i secondi per fare la tua mossa \n", tempo);
+    
     do{
         pulisciInput(stdin);
         printf("scegli mossa:\n");
         scanf("%i", &colonna);
     }while(!controllo_colonna(colonna, dati->nColonne) || colonna_piena(colonna, dati->nRighe, dati->nColonne, griglia));
-
+    //tempo fermato
+    tempo = alarm(0);
     //invia al server la scelta tramite queue
     printf("hai scelto la colonna: %i \n", colonna);
-    
-    mossa.mtype = 3;
-    mossa.colonnaScelta = colonna;
-    size_t mSize = sizeof(mossa) - sizeof(long);
-
     //--------------Turno--------------
     if(dati->turno[CLIENT1] == 1){
         dati->turno[CLIENT1] = 0;
@@ -247,10 +253,29 @@ void gioca(char * griglia, int msqId, struct dati * dati){
         dati->turno[CLIENT2] = 0;
         dati->turno[CLIENT1] = 1;
     }
-    //-------------invio messaggio-------------
-    if (msgsnd (msqId, &mossa, mSize, 0) == -1)
-        printf("%s", strerror(errno));
     
+    mossa.mtype = 3;
+    mossa.colonnaScelta = colonna;
+    size_t mSize = sizeof(mossa) - sizeof(long);
+    //-------------invio messaggio-------------
+    if (msgsnd (msqId, &mossa, mSize, 0) == -1){
+        errExit("Errore nell'invio della mossa\n");
+    }
+    
+}
+
+
+void sigHandlertempo(int sig){
+    printf("Timer scaduto! hai abbandonato la partita\n");
+    if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
+        dati->pidClient[CLIENT1] = 0;
+    }else if(dati->turno[CLIENT2] == 1){ //turno giocatore due
+        dati->pidClient[CLIENT2] = 0;
+    }
+    
+    semOp(semIdS, MUTEX, 1);
+    semOp(semIdS, SERVER, 1); 
+    exit(0);
 }
 
 void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqId){
@@ -274,6 +299,7 @@ void abbandonoServer(struct dati * dati){
     if (signal(SIGUSR2, sigHandlerServer) == SIG_ERR)
         errExit("change signal handler failed");
 }
+
 
 void sigHandlerServer(int sig){
     printf("il server ha terminato il gioco\n");

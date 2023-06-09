@@ -157,7 +157,7 @@ int main(int argc, char * argv[]){
         fflush(stdout);
         printf("server sbloccato \n");
         //P(mutex)
-        if(abbandonoClient(dati) == 2){
+        if(abbandonoClient(dati) == 1){
             rimozioneIpc(dati, griglia, shmIdD, shmIdG, semId, msqId);
             exit(0);
         }
@@ -196,28 +196,32 @@ void gioco(char * griglia, int I, struct dati *dati){
     //ricevuta del messaggio
     if (msgrcv(I, &mossa, mSize, 3, IPC_NOWAIT) == -1)
         printf("%s\n", strerror(errno));
-    colonnaScelta = mossa.colonnaScelta;
-    int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
+    if(mossa.colonnaScelta != -1){
+        colonnaScelta = mossa.colonnaScelta;
+        int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
 
-    //Inserimento della pedina nella griglia (if per mettere pedina giusta)
-    if(dati->turno[CLIENT1] == 1 && dati->turno[CLIENT2] == 0){  
-        inserisci(pos, colonnaScelta, griglia, dati->param1);
-    }else if(dati->turno[CLIENT2] == 1 && dati->turno[CLIENT1] == 0){
-        inserisci(pos, colonnaScelta, griglia, dati->param2);
-    }
+        //Inserimento della pedina nella griglia (if per mettere pedina giusta)
+        if(dati->turno[CLIENT1] == 1 && dati->turno[CLIENT2] == 0){  
+            inserisci(pos, colonnaScelta, griglia, dati->param1);
+        }else if(dati->turno[CLIENT2] == 1 && dati->turno[CLIENT1] == 0){
+            inserisci(pos, colonnaScelta, griglia, dati->param2);
+        }
     
-    //controllo se è la pedina che riempie la matrice
-    if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
-        printf("tabella piena\n");
-        dati->fineGioco = 2;
-    }
-    
-    printf("VITTORIA V: %i\n", vittoria_verticale(pos, nRighe, nColonne, griglia));
-    printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
-    printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));
-    printf("PARITA: %i\n", tabella_piena(nRighe, nColonne, griglia));
+        //controllo se è la pedina che riempie la matrice
+        if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
+            printf("tabella piena\n");
+            dati->fineGioco = 2;
+        }
+        
+        printf("VITTORIA V: %i\n", vittoria_verticale(pos, nRighe, nColonne, griglia));
+        printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
+        printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));
+        printf("PARITA: %i\n", tabella_piena(nRighe, nColonne, griglia));
 
-    dati->fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
+        dati->fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
+    }else{
+        printf("turno saltato\n");
+    }
 }   
 
 void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semId, int msqId){
