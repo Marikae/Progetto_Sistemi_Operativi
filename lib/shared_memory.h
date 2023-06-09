@@ -7,8 +7,7 @@
 struct dati{
     int nColonne;
     int nRighe;
-    char param1;
-    char param2;
+    char pedina[2];
     int indirizzamento[2];
     int turno[2];
     int pidClient[2];

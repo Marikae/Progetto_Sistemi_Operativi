@@ -31,86 +31,73 @@
 #define INS 6
 #define TERM 7
 
+//Variabili globali
+#define TEMPO 30
 struct mossa mossa;
-
 struct dati * dati;
+char * griglia;
+int semId;
+int shmIdD;
+int shmIdG;
+int msqId;
 
-int semIdS;
-
-int saltaTurno;
-
-void gioca(char * griglia, int msqId, struct dati *dati);
-
-void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dati *dati);
-
-void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dati *dati);
-
-void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqId);
-
-void sigHandler(int sig);
-
+//Funzioni utilizzate
+void gioca();
+void giocatore1(char * nomeG1);
+void giocatore2(char * nomeG2);
+void rimozioneIpc();
+void sigHandlerAbbandono(int sig);
 void sigHandler2(int sig);
-
 void sigHandlerServer(int sig);
-
-void abbandonoClient(struct dati * dati);
-
-void abbandonoServer(struct dati * dati);
-
-void sigHandlertempo(int sig);
-
+void abbandonoClient();
+void abbandonoServer();
+void sigHandlerTempo(int sig);
 void pulisciInput(FILE *const in);
-
 void fineGioco();
 
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
-    char * griglia;
-
     //------------------------------MEMORIA CONDIVISA DATI----------------------------------
     ssize_t sizeMemD = sizeof(dati);
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
     if(chiaveD == -1){
         errExit("Client: creazione chiave dati fallita\n");
     }
-    int shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
+    shmIdD = shmget(chiaveD, sizeMemD, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdD == -1){
         errExit("Client: creazione shm dati fallita\n");
     }
     dati = (struct dati *)shmat(shmIdD, NULL, 0);
     nColonne = dati->nColonne;
     nRighe = dati->nRighe;
-
     //-------------------------------MEMORIA CONDIVISA GRIGLIA-------------------------------
     key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
     if(chiaveG == -1){
         errExit("Client: creazione chiave griglia fallita\n");
     }
     ssize_t sizeMemG = (nRighe * nColonne) * sizeof(char);
-    int shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR);
+    shmIdG = shmget(chiaveG, sizeMemG, IPC_CREAT | S_IRUSR | S_IWUSR);
     if(shmIdG == -1){
         errExit("Client: creazione shm griglia fallita\n");
     }
     griglia = (char *)shmat(shmIdG, NULL, 0);
-
     //------------------------------------MSG QUEUE-------------------------------------------
     key_t chiaveMsq = ftok("./keys/chiaveMessaggi.txt", 'a');
     if(chiaveMsq == -1){
         errExit("Client: creazione chiave msg queue fallita\n");
     }
-    int msqId = msgget(chiaveMsq,  S_IRUSR | S_IWUSR);
+    msqId = msgget(chiaveMsq,  S_IRUSR | S_IWUSR);
     if  (msqId == -1){
         errExit("Client: creazione msg queue fallita\n");
     }
-
     //-----------------------------------SEMAFORI INIT---------------------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
     if(chiaveSem == -1){
         errExit("Client: creazione chiave semafori fallita\n");
     }
-    semIdS = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
-    if  (semIdS == -1){
+    semId = semget(chiaveSem, 8, IPC_CREAT | S_IRUSR | S_IWUSR);
+    if  (semId == -1){
         errExit("Client: creazione semafori fallita\n");
     }
     
@@ -118,10 +105,10 @@ int main(int argc, char * argv[]){
     
     if(dati->indirizzamento[CLIENT1] == 0){//arriva client 1
         dati->indirizzamento[CLIENT1] = 1;
-        giocatore1(argv[1], semIdS, griglia, msqId, dati);
+        giocatore1(argv[1]);
     }else if(dati->indirizzamento[CLIENT1] == 1 && dati->indirizzamento[CLIENT2] == 0){ //arriva client 2
         dati->indirizzamento[CLIENT1] = 1;
-        giocatore2(argv[1], semIdS, griglia, msqId, dati);
+        giocatore2(argv[1]);
     }else if(dati->indirizzamento[CLIENT1] == 1 && dati->indirizzamento[CLIENT2] == 1){ //arriva client indesiderato
         printf("Ci sono già due giocatori!\n");
         exit(0);
@@ -130,23 +117,23 @@ int main(int argc, char * argv[]){
     fineGioco();
     //-------------------RIMOZIONE IPC-----------------------
     //V(DISC)
-    semOp(semIdS, TERM, 1);
+    semOp(semId, TERM, 1);
     
 }
 
-void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dati * dati){
+void giocatore1(char * nomeG1){
     dati->pidClient[CLIENT1] = getpid(); //pid processo client 1
     //V(sinc) -> avvisa il server che è arrivato (sblocca)
-    printf("Giocatore %s: la tua pedina è %c\n", nomeG1, dati->param1);
+    printf("Giocatore %s: la tua pedina è %c\n", nomeG1, dati->pedina[CLIENT1]);
     printf("Giocatore %s: Attesa giocatore 2...\n", nomeG1);
-    semOp(semIdS, SINC, 1); 
+    semOp(semId, SINC, 1); 
     int c2arrivato = 1;
     
     while(dati->fineGioco == 0){
         //P(client1) //all'inzio aspetta il giocatore 2
-        abbandonoClient(dati); //se si abbandona mentre è il turno dell'altro giocatore
-        abbandonoServer(dati); 
-        semOp(semIdS, CLIENT1, -1);
+        abbandonoClient(); //se si abbandona mentre è il turno dell'altro giocatore
+        abbandonoServer(); 
+        semOp(semId, CLIENT1, -1);
         if(c2arrivato == 1){
             printf("Giocatore 2 arrivato\n");
             c2arrivato = 0;
@@ -156,23 +143,23 @@ void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dat
         }
 
         //P(b) -> aspetto server
-        semOp(semIdS, B, -1); 
+        semOp(semId, B, -1); 
         fflush(stdout);
         //P(mutex)
-        semOp(semIdS, MUTEX, -1);
+        semOp(semId, MUTEX, -1);
         
-        gioca(griglia, msqId, dati); //MUTUA
+        gioca(); //MUTUA
         //V(mutex)
-        semOp(semIdS, MUTEX, 1);
+        semOp(semId, MUTEX, 1);
         fflush(stdout);
         //V(s) -> invio al server (mss queue)
-        semOp(semIdS, SERVER, 1); 
+        semOp(semId, SERVER, 1); 
         //P(INS)
-        semOp(semIdS, INS, -1);
+        semOp(semId, INS, -1);
         stampa(dati->nRighe, dati->nColonne, griglia);
         fflush(stdout);
         //V(c2)
-        semOp(semIdS, CLIENT2, 1); 
+        semOp(semId, CLIENT2, 1); 
         fflush(stdout);
         if(dati->fineGioco == 0){
             printf("Giocatore %s: Turno del giocatore 2...\n", nomeG1);    
@@ -183,56 +170,56 @@ void giocatore1(char * nomeG1, int semIdS, char * griglia, int msqId, struct dat
     stampa(dati->nRighe, dati->nColonne, griglia);
 }
 
-void giocatore2(char * nomeG2, int semIdS, char * griglia, int msqId, struct dati * dati){
+void giocatore2(char * nomeG2){
     dati->pidClient[CLIENT2] = getpid();
-    printf("Giocatore %s: la tua pedina è questa: %c\n", nomeG2, dati->param2);
+    printf("Giocatore %s: la tua pedina è questa: %c\n", nomeG2, dati->pedina[CLIENT2]);
     //V(s2) -> avvisa il server che è arrivato (sblocca)
-    semOp(semIdS, SINC, 1);
+    semOp(semId, SINC, 1);
     //V(c1) //all'inzio sblocca giocatore 1
-    semOp(semIdS, CLIENT1, 1); 
+    semOp(semId, CLIENT1, 1); 
 
     while(dati->fineGioco == 0){
         //P(c2) -> blocco giocatore 2, sbloccato da giocatore 1
         if(dati->fineGioco == 0)
             printf("Giocatore %s: Turno del giocatore 1...\n", nomeG2);
         fflush(stdout);
-        abbandonoClient(dati);
-        abbandonoServer(dati);
-        semOp(semIdS, CLIENT2, -1);        
+        abbandonoClient();
+        abbandonoServer();
+        semOp(semId, CLIENT2, -1);        
         if(dati->fineGioco != 0){
             break;
         }
         //P(B) -> aspetto server
-        semOp(semIdS, B, -1);
+        semOp(semId, B, -1);
         //P(mutex)
         fflush(stdout);
-        semOp(semIdS, MUTEX, -1);
+        semOp(semId, MUTEX, -1);
         fflush(stdin);
-        gioca(griglia, msqId, dati);
+        gioca();
         //V(mutex)
-        semOp(semIdS, MUTEX, 1);
+        semOp(semId, MUTEX, 1);
         //V(s) -> invio al server (mss queue)
-        semOp(semIdS, SERVER, 1); 
+        semOp(semId, SERVER, 1); 
         //P(INS)
-        semOp(semIdS, INS, -1);
+        semOp(semId, INS, -1);
         stampa(dati->nRighe, dati->nColonne, griglia);
         //V(c1)
-        semOp(semIdS, CLIENT1, 1); 
+        semOp(semId, CLIENT1, 1); 
     }
     printf("---fine gioco---\n");
     stampa(dati->nRighe, dati->nColonne, griglia);
 }
 
-void gioca(char * griglia, int msqId, struct dati * dati){
+void gioca(){
     int colonna = -1;
     stampa(dati->nRighe, dati->nColonne, griglia); //stampa mossa del giocatore precedente
 
     fflush(stdout);
-    abbandonoServer(dati);
-    if (signal(SIGALRM, sigHandlertempo) == SIG_ERR)
+    abbandonoServer();
+    if (signal(SIGALRM, sigHandlerTempo) == SIG_ERR)
         errExit("change signal handler failed");
     
-    int tempo = 5;
+    int tempo = TEMPO;
     alarm(tempo); // setting a tempo
     printf("Hai %i secondi per fare la tua mossa \n", tempo);
     
@@ -265,7 +252,7 @@ void gioca(char * griglia, int msqId, struct dati * dati){
 }
 
 
-void sigHandlertempo(int sig){
+void sigHandlerTempo(int sig){
     printf("Timer scaduto! hai abbandonato la partita\n");
     if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
         dati->pidClient[CLIENT1] = 0;
@@ -273,13 +260,13 @@ void sigHandlertempo(int sig){
         dati->pidClient[CLIENT2] = 0;
     }
     
-    semOp(semIdS, MUTEX, 1);
-    semOp(semIdS, SERVER, 1); 
+    semOp(semId, MUTEX, 1);
+    semOp(semId, SERVER, 1); 
     exit(0);
 }
 
-void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semid, int msqId){
-    semRemove(semid);
+void rimozioneIpc(){
+    semRemove(semId);
     freeShm(dati);
     freeShm(griglia);
     removeShm(shmIdG);
@@ -288,14 +275,14 @@ void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, in
         errExit("msgctl failed");
 }
 
-void abbandonoClient(struct dati * dati){
-    if (signal(SIGINT, sigHandler) == SIG_ERR)
+void abbandonoClient(){
+    if (signal(SIGINT, sigHandlerAbbandono) == SIG_ERR)
         errExit("change signal handler failed");
     if (signal(SIGUSR1, sigHandler2) == SIG_ERR)
         errExit("change signal handler failed");
 }
 
-void abbandonoServer(struct dati * dati){
+void abbandonoServer(){
     if (signal(SIGUSR2, sigHandlerServer) == SIG_ERR)
         errExit("change signal handler failed");
 }
@@ -303,12 +290,12 @@ void abbandonoServer(struct dati * dati){
 
 void sigHandlerServer(int sig){
     printf("il server ha terminato il gioco\n");
-    semOp(semIdS, TERM, 1);
+    semOp(semId, TERM, 1);
     
     exit(0);
 }
 
-void sigHandler(int sig) {
+void sigHandlerAbbandono(int sig) {
     printf("\nHai abbandonato la partita\n");
     if(getpid() == dati->pidClient[CLIENT1]){
         dati->pidClient[CLIENT1] = 0;
@@ -318,7 +305,7 @@ void sigHandler(int sig) {
         fflush(stdout);
     }
     //V(SERVER)
-    semOp(semIdS, SERVER, 1); 
+    semOp(semId, SERVER, 1); 
     exit(0);
 }
 
@@ -327,7 +314,7 @@ void sigHandler2(int sig) {
     exit(0);
 }
 
-void pulisciInput(FILE * const in){
+void pulisciInput(FILE * const in){ //da cambiare nome variabili
     if(in){
         long const descriptor = fileno(in);
         int dummy;

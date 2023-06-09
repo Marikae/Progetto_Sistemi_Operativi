@@ -21,6 +21,7 @@
 #include "../lib/semaphore.h"
 #include "../lib/mossa.h"
 
+//posizione semafori
 #define CLIENT1 0
 #define CLIENT2 1
 #define SERVER 2
@@ -30,35 +31,29 @@
 #define INS 6
 #define TERM 7
 
+//variabili globali
 struct mossa mossa;
-
-void gioco(char * griglia, int I, struct dati * dati);
-
-void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semId, int msqId);
-
-int abbandonoClient(struct dati * dati);
-
-void abbadonoServer();
-
-void sigHandler(int sig);
-
-void sigHandler2(int sig);
-
-int abbandono = 0;
-
-
 struct dati * dati;
 char * griglia;
 int shmIdD;
 int shmIdG; 
 int semId;
 int msqId;
+int abbandono = 0;
+
+//funzioni del programma
+void gioco();
+void rimozioneIpc();
+int abbandonoClient();
+void abbadonoServer();
+void sigHandlerServer(int sig);
+void sigHandler2(int sig);
 
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
-    char param1;
-    char param2;
+    char pedina1;
+    char pedina2;
 
 
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
@@ -66,8 +61,8 @@ int main(int argc, char * argv[]){
     //salvataggio degli input - (messo sotto perchè prima controlla e poi salva)
     nRighe = atoi(argv[1]);
     nColonne = atoi(argv[2]);
-    param1 = argv[3][0];
-    param2 = argv[4][0];
+    pedina1 = argv[3][0];
+    pedina2 = argv[4][0];
     
     //--------------------MEMORIA CONDIVISA DATI------------------------------------
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
@@ -84,8 +79,8 @@ int main(int argc, char * argv[]){
     //riempimento memoria condivisa
     dati->nColonne = nColonne;
     dati->nRighe = nRighe;
-    dati->param1 = param1;
-    dati->param2 = param2;
+    dati->pedina[CLIENT1] = pedina1;
+    dati->pedina[CLIENT2] = pedina2;
     dati->indirizzamento[CLIENT1] = 0;
     dati->indirizzamento[CLIENT2] = 0;
     dati->turno[CLIENT1] = 1;
@@ -158,11 +153,11 @@ int main(int argc, char * argv[]){
         printf("server sbloccato \n");
         //P(mutex)
         if(abbandonoClient(dati) == 1){
-            rimozioneIpc(dati, griglia, shmIdD, shmIdG, semId, msqId);
+            rimozioneIpc();
             exit(0);
         }
         semOp(semId, MUTEX, -1);
-        gioco(griglia, msqId, dati);
+        gioco();
         //V(mutex)
         fflush(stdout);
         semOp(semId, MUTEX, 1);
@@ -184,17 +179,17 @@ int main(int argc, char * argv[]){
     //P(TERM)
     semOp(semId, TERM, -1);
 
-    rimozioneIpc(dati, griglia, shmIdD, shmIdG, semId, msqId);
+    rimozioneIpc();
     printf("IPC rimosse\n");
 }
 
-void gioco(char * griglia, int I, struct dati *dati){
+void gioco(){
     int colonnaScelta = 0;
     int nColonne = dati->nColonne;
     int nRighe = dati->nRighe;
     size_t mSize = sizeof(struct mossa)-sizeof(long);
     //ricevuta del messaggio
-    if (msgrcv(I, &mossa, mSize, 3, IPC_NOWAIT) == -1)
+    if (msgrcv(msqId, &mossa, mSize, 3, IPC_NOWAIT) == -1)
         printf("%s\n", strerror(errno));
     if(mossa.colonnaScelta != -1){
         colonnaScelta = mossa.colonnaScelta;
@@ -202,9 +197,9 @@ void gioco(char * griglia, int I, struct dati *dati){
 
         //Inserimento della pedina nella griglia (if per mettere pedina giusta)
         if(dati->turno[CLIENT1] == 1 && dati->turno[CLIENT2] == 0){  
-            inserisci(pos, colonnaScelta, griglia, dati->param1);
+            inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT1]);
         }else if(dati->turno[CLIENT2] == 1 && dati->turno[CLIENT1] == 0){
-            inserisci(pos, colonnaScelta, griglia, dati->param2);
+            inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT2]);
         }
     
         //controllo se è la pedina che riempie la matrice
@@ -224,7 +219,7 @@ void gioco(char * griglia, int I, struct dati *dati){
     }
 }   
 
-void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, int semId, int msqId){
+void rimozioneIpc(){
     semRemove(semId);
     freeShm(dati);
     freeShm(griglia);
@@ -234,7 +229,7 @@ void rimozioneIpc(struct dati * dati, char * griglia, int shmIdD, int shmIdG, in
         errExit("Server: rimozione msg queue fallita");
 }
 
-int abbandonoClient(struct dati * dati){
+int abbandonoClient(){
     if(dati->pidClient[CLIENT1] == 0){
         kill(dati->pidClient[CLIENT2], SIGUSR1);
         printf("partita finita per abbandono del giocatore 1\n");
@@ -248,29 +243,25 @@ int abbandonoClient(struct dati * dati){
 }
 
 void abbadonoServer(){
-    if (signal(SIGINT, sigHandler) == SIG_ERR){
-        printf("errore signal\n");
-        errExit("change signal handler failed");
+    if (signal(SIGINT, sigHandlerServer) == SIG_ERR){
+        errExit("Errore ricevimento segnale CTRL C");
     }
 }
 
-void sigHandler(int sig){
+void sigHandlerServer(int sig){
     if(abbandono == 0){
-        sigset_t mySet;
-        sigfillset(&mySet);
-        sigdelset(&mySet, SIGINT);
+        sigset_t set;
+        sigfillset(&set);
+        sigdelset(&set, SIGINT);
         abbandono = 1;
         printf("\nal prossimo ctrl c il gioco terminerà\n");
-        sigsuspend(&mySet);
+        sigsuspend(&set);
         printf("\n---gioco terminato---\n");
-        
-
         kill(dati->pidClient[CLIENT1], SIGUSR2);
         kill(dati->pidClient[CLIENT2], SIGUSR2);
         semOp(semId, TERM, -1);
         semOp(semId, TERM, -1);
-        rimozioneIpc(dati, griglia, shmIdD, shmIdG, semId, msqId);
+        rimozioneIpc();
         exit(0);
     }
-    
 }
