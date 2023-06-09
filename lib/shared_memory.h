@@ -7,7 +7,12 @@
 struct dati{
     int nColonne;
     int nRighe;
-    int gestione[2];
+    char param1;
+    char param2;
+    int indirizzamento[2];
+    int turno[2];
+    int pidClient[2];
+    int fineGioco;
 };
 
 // The alloc_shared_memory method creates, if it does not exist, a shared
@@ -28,6 +33,6 @@ void freeShm(void *ptr_sh);
 
 // The remove_shared_memory removes a shared memory segment
 // If it does not succeed, it terminates the calling process
-void removeSHm(int shmid);
+void removeShm(int shmid);
 
 #endif

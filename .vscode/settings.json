@@ -7,7 +7,9 @@
         "errno.h": "c",
         "errexit.h": "c",
         "matrixlib.h": "c",
-        "mossa.h": "c"
+        "mossa.h": "c",
+        "msg.h": "c",
+        "types.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
