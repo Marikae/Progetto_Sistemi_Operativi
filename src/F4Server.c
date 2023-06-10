@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+#include <time.h>
 
 //librerie sys call
 #include <sys/sem.h>
@@ -30,7 +31,7 @@
 #define SINC 5
 #define INS 6
 #define TERM 7
-
+#define WAIT 1
 //variabili globali
 struct mossa mossa;
 struct dati * dati;
@@ -40,11 +41,16 @@ int shmIdG;
 int semId;
 int msqId;
 int abbandono = 0;
+int fileDes[2];
+int n;
+struct mossa mossa;
 
 //funzioni del programma
 void gioco();
+void giocoAutomatico();
 void rimozioneIpc();
 int abbandonoClient();
+void generaMossa();
 void abbadonoServer();
 void sigHandlerServer(int sig);
 void sigHandler2(int sig);
@@ -54,16 +60,12 @@ int main(int argc, char * argv[]){
     int nColonne;
     char pedina1;
     char pedina2;
-
-
     controlloInput(argc, argv); //funzione CONTROLLO INPUT 
-
     //salvataggio degli input - (messo sotto perchè prima controlla e poi salva)
     nRighe = atoi(argv[1]);
     nColonne = atoi(argv[2]);
     pedina1 = argv[3][0];
     pedina2 = argv[4][0];
-    
     //-----------------------------------MEMORIA CONDIVISA DATI------------------------------------------
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
     if(chiaveD == -1){
@@ -86,7 +88,7 @@ int main(int argc, char * argv[]){
     dati->turno[CLIENT1] = 1;
     dati->turno[CLIENT2] = 0;
     dati->fineGioco = 0;
-
+    dati->giocoAutomatico = 0;
     //---------------------------MEMORIA CONDIVISA DELLA GRIGLIA DI GIOCO--------------------------------
     key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
     if (chiaveG == -1){
@@ -102,7 +104,11 @@ int main(int argc, char * argv[]){
     for(int i = 0; i < nRighe*nColonne; i++){
         griglia[i] = ' ';
     }
-    
+    //-------------------------------------------PIPE---------------------------------------------------
+    n = (nColonne * nRighe)/2;
+
+    if (pipe(fileDes) == -1)
+        printf("errore PIPE\n");
     //------------------------------------------MSG QUEUE-----------------------------------------------
     key_t chiaveMsq = ftok("./keys/chiaveMessaggi.txt", 'a');
     if(chiaveMsq == -1){
@@ -112,7 +118,7 @@ int main(int argc, char * argv[]){
     if(msqId == -1 ){
         errExit("Server: errore crezione msg queue\n");
     }
-
+    
     //------------------------------------------SEMAFORI---------------------------------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
     if(chiaveSem == -1){
@@ -136,46 +142,51 @@ int main(int argc, char * argv[]){
     printf("Attesa giocatori...\n");
     //P(sinc) -> attesa client 1
     semOp(semId, SINC, -1);
-    
     printf("-> Giocatore 1 arrivato\n");
-    //P(sinc) -> attesa client 2
-    semOp(semId, SINC, -1);
-    printf("-> Giocatore 2 arrivato\n");
-    printf("----------------Sincronizzazione avvenuta------------\n");
+    if(dati->giocoAutomatico == 0){
+        //P(sinc) -> attesa client 2
+        semOp(semId, SINC, -1);
+        printf("-> Giocatore 2 arrivato\n");
+        printf("----------------Sincronizzazione avvenuta------------\n");
 
-    while(dati->fineGioco == 0){   
-        abbadonoServer();
-        fflush(stdout);
-        //P(s) -> attesa mossa giocatore, sbloccato da client
-        semOp(semId, SERVER, -1);
+        while(dati->fineGioco == 0){   
+            abbadonoServer();
+            fflush(stdout);
+            //P(s) -> attesa mossa giocatore, sbloccato da client
+            semOp(semId, SERVER, -1);
 
-        fflush(stdout);
-        printf("server sbloccato \n");
-        //P(mutex)
-        if(abbandonoClient(dati) == 1){
-            rimozioneIpc();
-            exit(0);
+            fflush(stdout);
+            printf("server sbloccato \n");
+            //P(mutex)
+            if(abbandonoClient(dati) == 1){
+                rimozioneIpc();
+                exit(0);
+            }
+            semOp(semId, MUTEX, -1);
+            gioco();
+            //V(mutex)
+            fflush(stdout);
+            semOp(semId, MUTEX, 1);
+            //V(INS)
+            semOp(semId, INS, 1);
+            fflush(stdout);
+            //V(B) -> sblocca client
+            semOp(semId, B, 1);
+            printf("Attesa mossa...\n"); 
         }
-        semOp(semId, MUTEX, -1);
-        gioco();
-        //V(mutex)
-        fflush(stdout);
-        semOp(semId, MUTEX, 1);
-        //V(INS)
-        semOp(semId, INS, 1);
-        fflush(stdout);
-        //V(B) -> sblocca client
-        semOp(semId, B, 1);
-        printf("Attesa mossa...\n"); 
+        //--------------------------------------FINE GIOCO-------------------------------------------------
+        printf("gioco finito... attesa disconnessione clients\n");
+        //--------------------------------------RIMOZIONE IPC----------------------------------------------
+        //P(TERM)
+        semOp(semId, TERM, -1);
+        //P(TERM)
+        semOp(semId, TERM, -1);
+    }else{
+        printf("gioco automatico!\n");
+        semOp(semId, SERVER, -1);
+        giocoAutomatico();
     }
-    //--------------------------------------FINE GIOCO-------------------------------------------------
-    printf("gioco finito... attesa disconnessione clients\n");
-    //--------------------------------------RIMOZIONE IPC----------------------------------------------
-    //P(TERM)
-    semOp(semId, TERM, -1);
-    //P(TERM)
-    semOp(semId, TERM, -1);
-
+    printf("Gioco terminato\n");
     rimozioneIpc();
     printf("IPC rimosse\n");
 }
@@ -184,10 +195,11 @@ void gioco(){
     int colonnaScelta = 0;
     int nColonne = dati->nColonne;
     int nRighe = dati->nRighe;
-    size_t mSize = sizeof(struct mossa)-sizeof(long);
+    size_t mSize = sizeof(struct mossa) - sizeof(long);
     //ricevuta del messaggio
     if (msgrcv(msqId, &mossa, mSize, 3, IPC_NOWAIT) == -1)
         printf("%s\n", strerror(errno));
+
     if(mossa.colonnaScelta != -1){
         colonnaScelta = mossa.colonnaScelta;
         int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
@@ -257,4 +269,115 @@ void sigHandlerServer(int sig){
         rimozioneIpc();
         exit(0);
     }
+}
+
+void giocoAutomatico(){
+    printf("sincronizzazione avvenuta\n");
+    //V(CLIENT)
+    semOp(semId, CLIENT1, 1); //turno del giocatore - sblocca giocatore
+    printf("sincronizzazione avvenuta\n");
+    while(dati->fineGioco == 0){
+        //P(SERVER)
+        semOp(semId, SERVER, -1);
+        //if(dati->turno[CLIENT1] == 0){ //se è il turno del giocatore 1 prende mossa dalla msgq
+            size_t mSize = sizeof(struct mossa) - sizeof(long);
+            //ricevuta del messaggio
+            if (msgrcv(msqId, &mossa, mSize, 3, IPC_NOWAIT) == -1){
+                errExit("Server: errore nella ricezione del messaggio\n");
+            }
+            int colonnaScelta = mossa.colonnaScelta;
+            int pos = posizione(colonnaScelta, dati->nRighe, dati->nColonne, griglia);
+            //Inserimento della pedina nella griglia (if per mettere pedina giusta)
+            semOp(semId, MUTEX, 1);
+            inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT1]);
+            semOp(semId, MUTEX, -1);
+            //controllo tabella piena
+            if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
+                printf("tabella piena\n");
+                dati->fineGioco = 2;
+            }
+            dati->fineGioco = fine_gioco(pos, colonnaScelta, dati->nRighe, dati->nColonne, griglia);
+        //} 
+        //V(iNS)
+        semOp(semId, INS, 1);
+        //P(SERVER) 
+        semOp(semId, SERVER, -1);
+        //----------------MOSSA CASUALE-----------------
+        //if(dati->turno[CLIENT2] == 1){ //se è il turno del bot allora prende mossa da PIPE
+            generaMossa();
+            //P(SERVER)
+            semOp(semId, SERVER, -1);
+            /*
+            int ran[0];
+            ssize_t nBys;
+            // close unused write-end
+            if (close(fileDes[1]) == -1)
+                printf("chiusura write fallita\n");
+            // reading from the PIPE
+            nBys = read(fileDes[0], ran, sizeof(int));
+            if (nBys != sizeof(ran)) {
+                printf("write fallita\n");
+            }
+            // close read-end of PIPE
+            if (close(fileDes[0]) == -1)
+                printf("chiusura read fallita\n");
+            */
+            
+            int colonnaSce = dati->giocoAutomatico;
+            int pox = posizione(colonnaSce, dati->nRighe, dati->nColonne, griglia);
+            //Inserimento della pedina nella griglia (if per mettere pedina giusta)
+            semOp(semId, MUTEX, 1);
+            inserisci(pox, colonnaSce, griglia, dati->pedina[CLIENT2]);
+            semOp(semId, MUTEX, -1);
+            //controllo tabella piena
+            if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
+                printf("tabella piena\n");
+                dati->fineGioco = 2;
+            }
+            dati->fineGioco = fine_gioco(pox, colonnaSce, dati->nRighe, dati->nColonne, griglia);
+       // }
+        //V(INS)
+        semOp(semId, CLIENT1, 1);
+        fflush(stdout);
+        printf("Attesa mossa...\n");
+        
+    }
+}
+
+void generaMossa(){
+    // generate a subprocess
+    pid_t pid = fork();
+    if(pid == -1){
+        printf("figlio non creato\n");
+    }else if (pid == 0) {
+        int ran;
+        srand(time(NULL));
+        do{
+            ran = rand() % (dati->nColonne + 1);
+        }while(!controllo_colonna(ran, dati->nColonne) || colonna_piena(ran, dati->nRighe, dati->nColonne, griglia));
+        
+        //mossa generata, metterla in pipe e cambiare turno
+        printf("mossa %i\n", ran);
+
+        /*
+        //SCRITTURA mossa nella pipe
+        ssize_t nBys;
+        // close unused read-end
+        if (close(fileDes[0]) == -1)
+            printf("chiusura read fallita\n");
+        // write to the PIPE
+        nBys = write(fileDes[1], &ran, sizeof(int));
+        // checkig if write successed
+        if (nBys != sizeof(ran)) {
+            printf("write fallita\n");
+        }
+        // close write-end of PIPE
+        if (close(fileDes[1]) == -1)
+            printf("chiusura write fallita\n");
+        */
+        dati->giocoAutomatico = ran;
+        exit(0);
+        wait(NULL);
+    }
+    semOp(semId, SERVER, 1);
 }

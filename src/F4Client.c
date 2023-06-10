@@ -32,7 +32,8 @@
 #define TERM 7
 
 //Variabili globali
-#define TEMPO 4
+#define TEMPO 40
+#define BOT 1
 struct mossa mossa;
 struct dati * dati;
 char * griglia;
@@ -108,6 +109,8 @@ int main(int argc, char * argv[]){
             dati->indirizzamento[CLIENT1] = 1;
             giocatore1(argv[1]);
         }else{
+            dati->indirizzamento[CLIENT1] = 1;
+            dati->indirizzamento[CLIENT2] = 1;
             giocoAutomatico();
         }
     }else if(dati->indirizzamento[CLIENT1] == 1 && dati->indirizzamento[CLIENT2] == 0){ //arriva client 2
@@ -132,7 +135,6 @@ void giocatore1(char * nomeG1){
     printf("Giocatore %s: Attesa giocatore 2...\n", nomeG1);
     semOp(semId, SINC, 1); 
     int c2arrivato = 1;
-    
     while(dati->fineGioco == 0){
         //P(client1) //all'inzio aspetta il giocatore 2
         abbandonoClient(); //se si abbandona mentre è il turno dell'altro giocatore
@@ -145,7 +147,6 @@ void giocatore1(char * nomeG1){
         if(dati->fineGioco != 0 ){
             break;
         }
-
         //P(b) -> aspetto server
         semOp(semId, B, -1); 
         fflush(stdout);
@@ -244,7 +245,6 @@ void gioca(){
         dati->turno[CLIENT2] = 0;
         dati->turno[CLIENT1] = 1;
     }
-    
     mossa.mtype = 3;
     mossa.colonnaScelta = colonna;
     size_t mSize = sizeof(mossa) - sizeof(long);
@@ -252,7 +252,6 @@ void gioca(){
     if (msgsnd (msqId, &mossa, mSize, 0) == -1){
         errExit("Errore nell'invio della mossa\n");
     }
-    
 }
 
 
@@ -263,7 +262,6 @@ void sigHandlerTempo(int sig){
     }else if(dati->turno[CLIENT2] == 1){ //turno giocatore due
         dati->pidClient[CLIENT2] = 0;
     }
-    
     semOp(semId, MUTEX, 1);
     semOp(semId, SERVER, 1); 
     exit(0);
@@ -346,4 +344,41 @@ void fineGioco(){
     }
 }
 
-void giocoAutomatico(){}
+void giocoAutomatico(){
+    printf("hai scelto l'opzione gioco automatico!\n");
+    dati->giocoAutomatico = 1;
+    //V(SINC)
+    semOp(semId, SINC, 1); //sincro con server
+    //V(SERVER)
+    semOp(semId, SERVER, 1);
+    printf("sincronizzazione avvenuta\n");
+    while(dati->fineGioco == 0){
+        abbandonoServer(); 
+        //P(CLIENT1)
+        semOp(semId, CLIENT1, -1);
+        if(dati->fineGioco != 0 ){
+            break;
+        }
+        fflush(stdout);
+        //P(mutex)
+        semOp(semId, MUTEX, -1);
+        gioca(); //MUTUA
+        //V(mutex)
+        semOp(semId, MUTEX, 1);
+        fflush(stdout);
+        //V(SERVER) -> invio al server (mss queue)
+        semOp(semId, SERVER, 1); 
+        //P(INS)
+        semOp(semId, INS, -1);
+        stampa(dati->nRighe, dati->nColonne, griglia);
+        fflush(stdout);
+        //V(SERVER)
+        semOp(semId, SERVER, 1);  
+        fflush(stdout);
+        if(dati->fineGioco == 0){
+            printf("Giocatore pippo: Turno del Server...\n");    
+        }
+    };
+    printf("---fine gioco---\n");
+    stampa(dati->nRighe, dati->nColonne, griglia);
+}
