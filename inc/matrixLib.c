@@ -10,16 +10,20 @@ void controlloInput(int argc, char * argv[]){
         printf("Inserimento non valido: numero di elementi inseriti non sufficiente\n");
         guida();
         exit(1);
-    }else if(atoi(argv[2]) < 5 && atoi(argv[1]) < 5 ){
+    }else if(atoi(argv[2]) < 5 && atoi(argv[1]) < 5 ){ //numero di righe e colonne non valido
         printf("Inserimento non valido: numero righe e colonne minore di 5\n");
         guida();
         exit(1);
-    }else if(atoi(argv[1]) < 5){
+    }else if(atoi(argv[1]) < 5){ //numero di righe non valido
         printf("Inserimento non valido: numero righe minore di 5\n");
         guida();
         exit(1);
-    }else if(atoi(argv[2]) < 5){
+    }else if(atoi(argv[2]) < 5){ //numero di colonne non valido
         printf("Inserimento non valido: numero delle colonne minore di 5\n");
+        guida();
+        exit(1);
+    }else if(argc == 6 && atoi(argv[5]) < 0){ //se il timer inserito non è un numero positivo
+        printf("Il timer deve essere un numero positivo\n");
         guida();
         exit(1);
     }
@@ -28,10 +32,11 @@ void controlloInput(int argc, char * argv[]){
 void guida(){
     printf("  ----------------------------Guida all'inserimento--------------------------\n");
     printf("  | Input atteso:                                                           |\n");
-    printf("  |                ./F4Server #RIGHE #COLONNE PEDINA1 PEDINA2               |\n");
+    printf("  |              ./F4Server #RIGHE #COLONNE PEDINA1 PEDINA2 TIMER           |\n");
     printf("  | -> Inserire in PEDINA1 la pedina che utilizzerà il giocatore 1          |\n");
     printf("  | -> Inserire in PEDINA2 la pedina che utilizzerà il giocatore 2          |\n");
     printf("  | Il numero delle righe e delle colonne deve essere maggiore o uguale a 5 |\n");
+    printf("  | Il TIMER non è obbligatorio                                             |\n");
     printf("  ---------------------------------------------------------------------------\n");
 }
 

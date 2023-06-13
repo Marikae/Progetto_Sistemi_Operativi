@@ -7,6 +7,7 @@
 struct dati{
     int nColonne;
     int nRighe;
+    int timer;
     char pedina[2];
     int indirizzamento[2];
     int turno[2];

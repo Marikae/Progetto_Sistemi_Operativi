@@ -32,7 +32,6 @@
 #define TERM 7
 
 //Variabili globali
-#define TEMPO 40
 #define BOT 1
 struct mossa mossa;
 struct dati * dati;
@@ -105,10 +104,10 @@ int main(int argc, char * argv[]){
     
     //indirizzamento dei processi nelle rispettive funzioni
     if(dati->indirizzamento[CLIENT1] == 0){//arriva client 1
-        if(argc < 3){
+        if(argc < 3){ //gioco tra due client
             dati->indirizzamento[CLIENT1] = 1;
             giocatore1(argv[1]);
-        }else{
+        }else{ //gioco automatico
             dati->indirizzamento[CLIENT1] = 1;
             dati->indirizzamento[CLIENT2] = 1;
             giocoAutomatico();
@@ -117,7 +116,7 @@ int main(int argc, char * argv[]){
         dati->indirizzamento[CLIENT1] = 1;
         giocatore2(argv[1]);
     }else if(dati->indirizzamento[CLIENT1] == 1 && dati->indirizzamento[CLIENT2] == 1){ //arriva client indesiderato
-        printf("Ci sono già due giocatori!\n");
+        printf("Non puoi giocare adesso\n");
         exit(0);
     }
     
@@ -217,21 +216,27 @@ void giocatore2(char * nomeG2){
 
 void gioca(){
     int colonna = -1;
+    int tempo;
     stampa(dati->nRighe, dati->nColonne, griglia); //stampa mossa del giocatore precedente
 
     fflush(stdout);
     abbandonoServer();
+    abbandonoClient();
     if (signal(SIGALRM, sigHandlerTempo) == SIG_ERR)
         errExit("change signal handler failed");
-    
-    int tempo = TEMPO;
-    alarm(tempo); // setting a tempo
-    printf("Hai %i secondi per fare la tua mossa \n", tempo);
+
+    if(dati->timer != -1){
+        tempo = dati->timer;
+        alarm(tempo); // setting a tempo
+        printf("Hai %i secondi per fare la tua mossa \n", tempo);
+    }
     
     do{
         pulisciInput(stdin);
         printf("scegli mossa:\n");
+        abbandonoClient();
         scanf("%i", &colonna);
+        abbandonoClient(); //abbandono dell'altro giocatore
     }while(!controllo_colonna(colonna, dati->nColonne) || colonna_piena(colonna, dati->nRighe, dati->nColonne, griglia));
     //tempo fermato
     tempo = alarm(0);
@@ -257,10 +262,21 @@ void gioca(){
 
 void sigHandlerTempo(int sig){
     printf("Timer scaduto! hai abbandonato la partita\n");
+    //per avvisare chi ha vinto
     if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
         dati->pidClient[CLIENT1] = 0;
     }else if(dati->turno[CLIENT2] == 1){ //turno giocatore due
         dati->pidClient[CLIENT2] = 0;
+    }
+    if(dati->giocoAutomatico == 1){
+        dati->pidClient[CLIENT2] = -4;
+        mossa.mtype = 3;
+        mossa.colonnaScelta = -1;
+        size_t mSize = sizeof(mossa) - sizeof(long);
+    //-------------invio messaggio-------------
+        if (msgsnd (msqId, &mossa, mSize, 0) == -1){
+            errExit("Errore nell'invio della mossa\n");
+        }
     }
     semOp(semId, MUTEX, 1);
     semOp(semId, SERVER, 1); 
@@ -278,7 +294,7 @@ void rimozioneIpc(){
 }
 
 void abbandonoClient(){
-    if (signal(SIGINT, sigHandlerAbbandono) == SIG_ERR)
+    if (signal(SIGINT, sigHandlerAbbandono) == SIG_ERR || signal(SIGHUP, sigHandlerAbbandono) == SIG_ERR)
         errExit("change signal handler failed");
     if (signal(SIGUSR1, sigHandler2) == SIG_ERR)
         errExit("change signal handler failed");
@@ -293,18 +309,21 @@ void abbandonoServer(){
 void sigHandlerServer(int sig){
     printf("il server ha terminato il gioco\n");
     semOp(semId, TERM, 1);
-    
     exit(0);
 }
 
 void sigHandlerAbbandono(int sig) {
     printf("\nHai abbandonato la partita\n");
-    if(getpid() == dati->pidClient[CLIENT1]){
-        dati->pidClient[CLIENT1] = 0;
-        fflush(stdout);
-    }else if(getpid() == dati->pidClient[CLIENT2]){
-        dati->pidClient[CLIENT2] = 0;
-        fflush(stdout);
+    if(dati->giocoAutomatico == 0){
+        if(getpid() == dati->pidClient[CLIENT1]){
+            dati->pidClient[CLIENT1] = 0;
+            fflush(stdout);
+        }else if(getpid() == dati->pidClient[CLIENT2]){
+            dati->pidClient[CLIENT2] = 0;
+            fflush(stdout);
+        }
+    }else{
+        dati->pidClient[CLIENT2] = -3;
     }
     //V(SERVER)
     semOp(semId, SERVER, 1); 
@@ -347,13 +366,14 @@ void fineGioco(){
 void giocoAutomatico(){
     printf("hai scelto l'opzione gioco automatico!\n");
     dati->giocoAutomatico = 1;
+    dati->pidClient[CLIENT1] = getpid();
     //V(SINC)
     semOp(semId, SINC, 1); //sincro con server
     //V(SERVER)
     semOp(semId, SERVER, 1);
     printf("sincronizzazione avvenuta\n");
     while(dati->fineGioco == 0){
-        abbandonoServer(); 
+        //abbandonoServer(); 
         //P(CLIENT1)
         semOp(semId, CLIENT1, -1);
         if(dati->fineGioco != 0 ){
@@ -362,6 +382,7 @@ void giocoAutomatico(){
         fflush(stdout);
         //P(mutex)
         semOp(semId, MUTEX, -1);
+        abbandonoClient();
         gioca(); //MUTUA
         //V(mutex)
         semOp(semId, MUTEX, 1);
@@ -381,4 +402,5 @@ void giocoAutomatico(){
     };
     printf("---fine gioco---\n");
     stampa(dati->nRighe, dati->nColonne, griglia);
+    
 }
