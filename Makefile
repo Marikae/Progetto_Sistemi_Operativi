@@ -8,13 +8,13 @@ CLIENT_SRCS=src/F4Client.c inc/shared_memory.c inc/errExit.c inc/matrixLib.c inc
 SERVER_OBJS=$(SERVER_SRCS:.c=.o)
 CLIENT_OBJS=$(CLIENT_SRCS:.c=.o)
 
-all: server client
+all: F4Server F4Client
 
-server: $(SERVER_OBJS)
+F4Server: $(SERVER_OBJS)
 	@echo "Making executable: "$@
 	@$(CC) $^ -o $@
 
-client: $(CLIENT_OBJS)
+F4Client: $(CLIENT_OBJS)
 	@echo "Making executable: "$@
 	@$(CC) $^ -o $@
 
