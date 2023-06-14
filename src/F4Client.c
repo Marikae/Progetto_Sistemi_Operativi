@@ -103,7 +103,6 @@ int main(int argc, char * argv[]){
     if  (semId == -1){
         errExit("Client: creazione semafori fallita\n");
     }
-    
     //indirizzamento dei processi nelle rispettive funzioni
     if(dati->indirizzamento[CLIENT1] == 0){//arriva client 1
         if(argc < 3){ //gioco tra due client
@@ -304,7 +303,6 @@ void giocoAutomatico(){
     
 }
 
-
 void fineGioco(){
     if(dati->giocoAutomatico == 0){
         if(dati->fineGioco == 2){
@@ -377,20 +375,16 @@ void sigHandlerTavolino(int sig) {
 void sigHandlerTempo(int sig){
     printf("Timer scaduto! hai abbandonato la partita\n");
     //per avvisare chi ha vinto
-
     if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
         dati->pidClient[CLIENT1] = 0;
     }else if(dati->turno[CLIENT2] == 1){ //turno giocatore 1
         dati->pidClient[CLIENT2] = 0;
     }
-
     if(dati->giocoAutomatico == 1){
-        //dati->pidClient[BOT] = -4;
         dati->fineGioco = 5;
     }
     semOp(semId, MUTEX, 1);
     semOp(semId, SERVER, 1);
-
     exit(0);
 }
 

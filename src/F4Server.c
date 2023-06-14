@@ -34,6 +34,7 @@
 #define TERM 7
 
 #define CLOCK 10
+
 //variabili globali
 struct mossa mossa;
 struct dati * dati;
@@ -43,16 +44,15 @@ int shmIdG;
 int semId;
 int msqId;
 int abbandono = 0;
-struct mossa mossa;
 
 //funzioni del programma
 void gioco();
 void giocoAutomatico();
-void rimozioneIpc();
-int abbandonoClient();
 void generaMossa();
+int abbandonoClient();
 void abbadonoServer();
 void sigHandlerServer(int sig);
+void rimozioneIpc();
 
 int main(int argc, char * argv[]){
     int nRighe;
@@ -67,7 +67,7 @@ int main(int argc, char * argv[]){
     pedina1 = argv[3][0];
     pedina2 = argv[4][0];
     
-    if(argc > 5){
+    if(argc > 5){ //se ci sono più di 5 argomenti allora c'è un timer
         timer = atoi(argv[5]);
     }
     //-----------------------------------MEMORIA CONDIVISA DATI------------------------------------------
@@ -119,7 +119,6 @@ int main(int argc, char * argv[]){
     if(msqId == -1 ){
         errExit("Server: errore crezione msg queue\n");
     }
-    
     //------------------------------------------SEMAFORI---------------------------------------------------
     key_t chiaveSem = ftok("./keys/chiaveSem.txt", 'a');
     if(chiaveSem == -1){
@@ -186,7 +185,6 @@ int main(int argc, char * argv[]){
         //P(TERM)
         semOp(semId, TERM, -1);
     }
-
     printf("Gioco terminato\n");
     rimozioneIpc(); //rimozione delle IPC allocate
     printf("IPC rimosse\n");
@@ -215,30 +213,114 @@ void gioco(){
             printf("tabella piena\n");
             dati->fineGioco = 2;
         }
-        /*
-        printf("VITTORIA V: %i\n", vittoria_verticale(pos, nRighe, nColonne, griglia));
-        printf("VITTORIA O: %i\n", vittoria_orizzontale(pos, colonnaScelta, nRighe, nColonne, griglia));
-        printf("VITTORIA D: %i\n", vittoria_diagonale(pos, colonnaScelta, nRighe, nColonne, griglia));
-        printf("PARITA: %i\n", tabella_piena(nRighe, nColonne, griglia));
-        */
         dati->fineGioco = fine_gioco(pos, colonnaScelta, nRighe, nColonne, griglia);
     }else{
         printf("turno saltato\n");
     }
 }   
 
-void rimozioneIpc(){
-    semRemove(semId);
-    freeShm(dati);
-    freeShm(griglia);
-    removeShm(shmIdG);
-    removeShm(shmIdD);
-    if (msgctl(msqId, IPC_RMID, NULL) == -1)
-        errExit("Server: rimozione msg queue fallita");
+
+void giocoAutomatico(){
+    //V(CLIENT)
+    semOp(semId, CLIENT1, 1); //turno del giocatore - sblocca giocatore
+    printf("sincronizzazione avvenuta\n");
+    while(dati->fineGioco == 0){
+        abbadonoServer();
+        //P(SERVER)
+        semOp(semId, SERVER, -1);  //appena il client sceglie la mossa e la invia sblocca il server
+        if(abbandonoClient() == 1){
+            printf("IPC rimosse \n");
+            rimozioneIpc();
+            exit(0);
+        }
+        size_t mSize = sizeof(struct mossa) - sizeof(long);
+        //ricevuta della mossa del client
+        if (msgrcv(msqId, &mossa, mSize, 3, IPC_NOWAIT) == -1){
+            errExit("Server: errore nella ricezione del messaggio\n");
+        }
+        int colonnaScelta = mossa.colonnaScelta;
+        int pos = posizione(colonnaScelta, dati->nRighe, dati->nColonne, griglia);
+        //Inserimento della pedina nella griglia
+        semOp(semId, MUTEX, 1); //modifica della mem condivisa - sezione critica
+        inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT1]);
+        semOp(semId, MUTEX, -1);
+        //controllo tabella piena
+        if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
+            printf("tabella piena\n");
+            dati->fineGioco = 2;
+        }   
+        //verifica della vittoria     
+        dati->fineGioco = fine_gioco(pos, colonnaScelta, dati->nRighe, dati->nColonne, griglia);
+        //V(INS) --------------------
+        semOp(semId, INS, 1); //semaforo per far stampare al client la griglia aggiornata con la mossa del clien
+        //P(SERVER)------------------
+        semOp(semId, SERVER, -1); //appena il client stampa la griglia aggiornata, tocca al bot
+        if(abbandonoClient() == 1){
+            rimozioneIpc();
+            exit(0);
+        }
+        //----------------MOSSA CASUALE-----------------
+        if(dati->fineGioco == 0 || dati->turno[BOT] == 0){
+            generaMossa(); //generata mossa casuale e inserita in memoria condivisa
+            //P(SERVER)
+            semOp(semId, SERVER, -1); //si sblocca quando il processo figlio finisce di fare le sue cose
+            
+            int mossaBot = dati->mossaBot;
+            printf("mossa bot %i\n", mossaBot);
+            int pox = posizione(mossaBot, dati->nRighe, dati->nColonne, griglia);
+            //Inserimento della pedina nella griglia
+            semOp(semId, MUTEX, 1); //modifica della sezione critica
+            inserisci(pox, mossaBot, griglia, dati->pedina[BOT]);
+            semOp(semId, MUTEX, -1);
+            //controllo tabella piena
+            if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
+                printf("tabella piena\n");
+                dati->fineGioco = 2;
+            }
+            if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
+                dati->turno[CLIENT1] = 0;
+                dati->turno[BOT] = 1;
+            }else if(dati->turno[BOT] == 1){ //turno giocatore due
+                dati->turno[CLIENT1] = 1;
+                dati->turno[BOT] = 0;
+            }
+            //verifica vittoria
+            dati->fineGioco = fine_gioco(pox, mossaBot, dati->nRighe, dati->nColonne, griglia);
+            //V(INS)
+            abbadonoServer();
+            //V(CLIENT)
+            semOp(semId, CLIENT1, 1); //sblocco turno del client
+        }
+        fflush(stdout);
+        printf("Attesa mossa...\n");
+    }
+}
+
+void generaMossa(){
+    int kazoo = 0; //wait a minute... who are you? 
+    int mossaBot;
+    srand(time(NULL));
+
+    pid_t pid = fork();
+    if(pid == -1){
+        printf("figlio non creato\n");
+    }else if (pid == 0) {
+        do{
+            mossaBot = rand() % (dati->nColonne) + 1;
+            printf("mossa generata %i\n", mossaBot); //controlo
+        }while(!controllo_colonna(mossaBot, dati->nColonne) || colonna_piena(mossaBot, dati->nRighe, dati->nColonne, griglia));
+        
+        printf("mossa valida %i\n", mossaBot); //controllo
+        sleep(kazoo); //il processo si addormenta per un secondo prima di mettere la mossa nella shm
+        dati->mossaBot = mossaBot;
+        exit(0);
+    }
+    wait(NULL);
+    semOp(semId, SERVER, 1);
 }
 
 int abbandonoClient(){
-    if(dati->giocoAutomatico == 0){
+    if(dati->giocoAutomatico == 0){ //gioco in coppia
         if(dati->pidClient[CLIENT1] == 0){
             kill(dati->pidClient[CLIENT2], SIGUSR1);
             printf("partita finita per abbandono del giocatore 1\n");
@@ -248,7 +330,7 @@ int abbandonoClient(){
             printf("partita finita per abbandono del giocatore 2\n");
             return 1;
         }
-    }else{
+    }else{ //gioco automatico
         if(dati->pidClient[BOT] == -3){
             printf("Il giocatore ha abbandonato\n");
             return 1;
@@ -296,105 +378,12 @@ void sigHandlerServer(int sig){
     }
 }
 
-void giocoAutomatico(){
-    //V(CLIENT)
-    semOp(semId, CLIENT1, 1); //turno del giocatore - sblocca giocatore
-    printf("sincronizzazione avvenuta\n");
-    while(dati->fineGioco == 0){
-        abbadonoServer();
-        //P(SERVER)
-        semOp(semId, SERVER, -1);  //appena il client sceglie la mossa e la invia sblocca il server
-        if(abbandonoClient() == 1){
-            printf("IPC rimosse \n");
-            rimozioneIpc();
-            exit(0);
-        }
-        //if(dati->fineGioco != 5){
-        size_t mSize = sizeof(struct mossa) - sizeof(long);
-        //ricevuta della mossa del client
-        if (msgrcv(msqId, &mossa, mSize, 3, IPC_NOWAIT) == -1){
-            errExit("Server: errore nella ricezione del messaggio\n");
-        }
-        int colonnaScelta = mossa.colonnaScelta;
-        int pos = posizione(colonnaScelta, dati->nRighe, dati->nColonne, griglia);
-        //Inserimento della pedina nella griglia
-        semOp(semId, MUTEX, 1); //modifica della mem condivisa - sezione critica
-        inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT1]);
-        semOp(semId, MUTEX, -1);
-        //controllo tabella piena
-        if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
-            printf("tabella piena\n");
-            dati->fineGioco = 2;
-        }   
-        //verifica della vittoria     
-        dati->fineGioco = fine_gioco(pos, colonnaScelta, dati->nRighe, dati->nColonne, griglia);
-        //V(INS)
-        semOp(semId, INS, 1); //semaforo per far stampare al client la griglia aggiornata con la mossa del clien
-        //P(SERVER)
-        semOp(semId, SERVER, -1); //appena il client stampa la griglia aggiornata, tocca al bot
-        if(abbandonoClient() == 1){
-            rimozioneIpc();
-            exit(0);
-        }
-
-        printf("sono qua prima della mossa casuale\n");
-        //----------------MOSSA CASUALE-----------------
-        if(dati->fineGioco == 0 || dati->turno[BOT] == 0){
-            printf("sono qua prima di generare la mossa\n");
-            generaMossa(); //generata mossa casuale e inserita in memoria condivisa
-            //P(SERVER)
-            semOp(semId, SERVER, -1); //si sblocca quando il processo figlio finisce di fare le sue cose
-            
-            int mossaBot = dati->mossaBot;
-            printf("mossa bot %i\n", mossaBot);
-            int pox = posizione(mossaBot, dati->nRighe, dati->nColonne, griglia);
-            //Inserimento della pedina nella griglia
-            semOp(semId, MUTEX, 1); //modifica della sezione critica
-            inserisci(pox, mossaBot, griglia, dati->pedina[BOT]);
-            semOp(semId, MUTEX, -1);
-            //controllo tabella piena
-            if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
-                printf("tabella piena\n");
-                dati->fineGioco = 2;
-            }
-            if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
-                dati->turno[CLIENT1] = 0;
-                dati->turno[BOT] = 1;
-            }else if(dati->turno[BOT] == 1){ //turno giocatore due
-                dati->turno[CLIENT1] = 1;
-                dati->turno[BOT] = 0;
-            }
-            //verifica vittoria
-            dati->fineGioco = fine_gioco(pox, mossaBot, dati->nRighe, dati->nColonne, griglia);
-            //V(INS)
-            abbadonoServer();
-            //V(CLIENT)
-            semOp(semId, CLIENT1, 1); //sblocco turno del client
-        }
-        fflush(stdout);
-        printf("Attesa mossa...\n");
-    }
-}
-
-void generaMossa(){
-    int kazoo = 0; //wait a minute... who are you? 
-    int mossaBot;
-    srand(time(NULL));
-
-    pid_t pid = fork();
-    if(pid == -1){
-        printf("figlio non creato\n");
-    }else if (pid == 0) {
-        do{
-            mossaBot = rand() % (dati->nColonne) + 1;
-            printf("mossa generata %i\n", mossaBot);
-        }while(!controllo_colonna(mossaBot, dati->nColonne) || colonna_piena(mossaBot, dati->nRighe, dati->nColonne, griglia));
-        
-        printf("mossa valida%i\n", mossaBot); //controllo
-        sleep(kazoo); //il processo si addormenta per un secondo prima di mettere la mossa nella shm
-        dati->mossaBot = mossaBot;
-        exit(0);
-    }
-    wait(NULL);
-    semOp(semId, SERVER, 1);
+void rimozioneIpc(){
+    semRemove(semId);
+    freeShm(dati);
+    freeShm(griglia);
+    removeShm(shmIdG);
+    removeShm(shmIdD);
+    if (msgctl(msqId, IPC_RMID, NULL) == -1)
+        errExit("Server: rimozione msg queue fallita");
 }
