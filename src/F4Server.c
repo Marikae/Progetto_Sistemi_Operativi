@@ -352,6 +352,11 @@ void giocoAutomatico(){
                 printf("tabella piena\n");
                 dati->fineGioco = 2;
             }
+            if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
+                dati->pidClient[CLIENT1] = 0;
+            }else if(dati->turno[CLIENT2] == 1){ //turno giocatore due
+                dati->pidClient[CLIENT2] = 0;
+            }
             //verifica vittoria
             dati->fineGioco = fine_gioco(pox, mossaBot, dati->nRighe, dati->nColonne, griglia);
             //V(INS)
@@ -373,7 +378,8 @@ void generaMossa(){
         int mossaBot;
         srand(time(NULL));
         do{
-            mossaBot = rand() % (dati->nColonne + 1);
+            mossaBot = rand() % (dati->nColonne + 1) + 1;
+            printf("mossa valida %i\n", mossaBot);
         }while(!controllo_colonna(mossaBot, dati->nColonne) || colonna_piena(mossaBot, dati->nRighe, dati->nColonne, griglia));
         
         //mossa generata, metterla in pipe e cambiare turno

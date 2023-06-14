@@ -59,6 +59,7 @@ void fineGioco();
 int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
+    char * bot = "bot";
     //------------------------------MEMORIA CONDIVISA DATI----------------------------------
     ssize_t sizeMemD = sizeof(dati);
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
@@ -107,7 +108,7 @@ int main(int argc, char * argv[]){
         if(argc < 3){ //gioco tra due client
             dati->indirizzamento[CLIENT1] = 1;
             giocatore1(argv[1]);
-        }else{ //gioco automatico
+        }else if(strcmp(argv[2], bot) == 0){ //gioco automatico -> se viene scritto "bot" come terzo elemento
             dati->indirizzamento[CLIENT1] = 1;
             dati->indirizzamento[CLIENT2] = 1;
             giocoAutomatico();
@@ -350,17 +351,32 @@ void pulisciInput(FILE * const in){ //da cambiare nome variabili
 }
 
 void fineGioco(){
-    if(dati->fineGioco == 2){
-        printf("Partita finita in parità!\n");
-    }else if(dati->fineGioco == 3){
-        if(dati->turno[CLIENT1] == 0){
-            printf("ha vinto il giocatore 1\n");
-        }else{
-            printf("ha vinto il giocatore 2\n");
+    if(dati->giocoAutomatico == 0){
+        if(dati->fineGioco == 2){
+            printf("Partita finita in parità!\n");
+        }else if(dati->fineGioco == 1){
+            if(dati->turno[CLIENT1] == 0){
+                printf("ha vinto il giocatore 1\n");
+            }else{
+                printf("ha vinto il giocatore 2\n");
+            }
+        }else if(dati->fineGioco == 4){
+            printf("Server disconnesso\n");
         }
-    }else if(dati->fineGioco == 4){
-        printf("Server disconnesso\n");
+    }else{
+        if(dati->fineGioco == 2){
+            printf("Partita finita in parità!\n");
+        }else if(dati->fineGioco == 1){
+            if(dati->turno[CLIENT1] == 0){
+                printf("HAI VINTO!\n");
+            }else{
+                printf("HA VINTO IL SERVER\n");
+            }
+        }else if(dati->fineGioco == 4){
+            printf("Server disconnesso\n");
+        }
     }
+    
 }
 
 void giocoAutomatico(){
