@@ -255,7 +255,6 @@ int abbandonoClient(){
             printf("Timer scaduto\n");
             return 1;
         }
-            
     }
     return 0;
 }
@@ -296,7 +295,7 @@ void giocoAutomatico(){
     printf("sincronizzazione avvenuta\n");
     while(dati->fineGioco == 0){
         //P(SERVER)
-        //abbadonoServer();
+        abbadonoServer();
         semOp(semId, SERVER, -1); //appena il client sceglie la mossa e la invia sblocca il server
         if(abbandonoClient() == 1){
             rimozioneIpc();
@@ -310,18 +309,21 @@ void giocoAutomatico(){
         }
         //printf("%i \n", mossa.colonnaScelta);
         int colonnaScelta = mossa.colonnaScelta;
-        int pos = posizione(colonnaScelta, dati->nRighe, dati->nColonne, griglia);
-        //Inserimento della pedina nella griglia
-        semOp(semId, MUTEX, 1); //modifica della mem condivisa - sezione critica
-        inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT1]);
-        semOp(semId, MUTEX, -1);
-        //controllo tabella piena
-        if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
-            printf("tabella piena\n");
-            dati->fineGioco = 2;
+
+        if(dati->fineGioco != 5){
+            int pos = posizione(colonnaScelta, dati->nRighe, dati->nColonne, griglia);
+            //Inserimento della pedina nella griglia
+            semOp(semId, MUTEX, 1); //modifica della mem condivisa - sezione critica
+            inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT1]);
+            semOp(semId, MUTEX, -1);
+            //controllo tabella piena
+            if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
+                printf("tabella piena\n");
+                dati->fineGioco = 2;
+            }
+            //verifica della vittoria
+            dati->fineGioco = fine_gioco(pos, colonnaScelta, dati->nRighe, dati->nColonne, griglia);
         }
-        //verifica della vittoria
-        dati->fineGioco = fine_gioco(pos, colonnaScelta, dati->nRighe, dati->nColonne, griglia);
         
         //V(iNS)
         semOp(semId, INS, 1); //semaforo per far stampare al client la griglia aggiornata con la mossa del client
@@ -352,11 +354,6 @@ void giocoAutomatico(){
                 printf("tabella piena\n");
                 dati->fineGioco = 2;
             }
-            if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
-                dati->pidClient[CLIENT1] = 0;
-            }else if(dati->turno[CLIENT2] == 1){ //turno giocatore due
-                dati->pidClient[CLIENT2] = 0;
-            }
             //verifica vittoria
             dati->fineGioco = fine_gioco(pox, mossaBot, dati->nRighe, dati->nColonne, griglia);
             //V(INS)
@@ -370,7 +367,7 @@ void giocoAutomatico(){
 }
 
 void generaMossa(){
-    // generate a subprocess
+    //generazione processo figlio
     pid_t pid = fork();
     if(pid == -1){
         printf("figlio non creato\n");
@@ -378,16 +375,14 @@ void generaMossa(){
         int mossaBot;
         srand(time(NULL));
         do{
-            mossaBot = rand() % (dati->nColonne + 1) + 1;
-            printf("mossa valida %i\n", mossaBot);
+            mossaBot = rand() % (dati->nColonne + 1);
         }while(!controllo_colonna(mossaBot, dati->nColonne) || colonna_piena(mossaBot, dati->nRighe, dati->nColonne, griglia));
-        
-        //mossa generata, metterla in pipe e cambiare turno
-        printf("mossa %i\n", mossaBot);
+        printf("mossa %i\n", mossaBot); //controllo
 
-        dati->giocoAutomatico = mossaBot;
+        dati->giocoAutomatico = mossaBot; //la mossa viene messa nella memoria condivisa
         exit(0);
-        wait(NULL);
+        
     }
-    semOp(semId, SERVER, 1);
+    wait(NULL); //il padre aspetta finchè il figlio non termina
+    semOp(semId, SERVER, 1); //questo semaforo non servirebbe ma lo tengo perchè mi da sicurezza
 }
