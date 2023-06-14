@@ -208,9 +208,9 @@ void gioco(){
         int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
         //Inserimento della pedina nella griglia (if per mettere pedina giusta)
         if(dati->turno[CLIENT1] == 1 && dati->turno[CLIENT2] == 0){  
-            inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT1]);
-        }else if(dati->turno[CLIENT2] == 1 && dati->turno[CLIENT1] == 0){
             inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT2]);
+        }else if(dati->turno[CLIENT2] == 1 && dati->turno[CLIENT1] == 0){
+            inserisci(pos, colonnaScelta, griglia, dati->pedina[CLIENT1]);
         }
         //controllo se è la pedina che riempie la matrice
         if(tabella_piena(dati->nRighe, dati->nColonne, griglia) == true){
@@ -391,24 +391,23 @@ void giocoAutomatico(){
 }
 
 void generaMossa(){
-    // generate a subprocess
+    int waitAMinute = 1;
+    int mossaBot;
+    srand(time(NULL));
+
     pid_t pid = fork();
     if(pid == -1){
         printf("figlio non creato\n");
     }else if (pid == 0) {
-        int mossaBot;
-        srand(time(NULL));
         do{
             mossaBot = rand() % (dati->nColonne) + 1;
-            printf("mossa valida %i\n", mossaBot);
+            printf("mossa generata %i\n", mossaBot);
         }while(!controllo_colonna(mossaBot, dati->nColonne) || colonna_piena(mossaBot, dati->nRighe, dati->nColonne, griglia));
         
-        //mossa generata, metterla in pipe e cambiare turno
-        printf("mossa %i\n", mossaBot);
-
+        printf("mossa valida%i\n", mossaBot); //controllo
+        sleep(waitAMinute); //il processo si addormenta per un secondo prima di mettere la mossa nella shm
         dati->giocoAutomatico = mossaBot;
         exit(0);
-        
     }
     wait(NULL);
     semOp(semId, SERVER, 1);
