@@ -14,6 +14,7 @@ struct dati{
     int pidClient[2];
     int fineGioco;
     int giocoAutomatico;
+    int mossaBot;
 };
 
 // The alloc_shared_memory method creates, if it does not exist, a shared

@@ -35,7 +35,6 @@ void semSet(int semid, union semun arg){
 
 //ESEGUE UN'OPERAZIONE BLOCCANTE SU UN SET DI SEMAFORI
 void semOp (int semid, unsigned short sem_num, short sem_op) {
-
 	struct sembuf sop = {
 		sop.sem_num = sem_num,
 		sop.sem_op = sem_op,
@@ -63,7 +62,6 @@ int semOpNoBlock (int semid, unsigned short sem_num, short sem_op) {
 			errExit("<Semaphore.c>: (SEMOP) Errore durante l'operazione al set di semafori.\n");
 		}
 	}
-
 	return 0;
 }
 

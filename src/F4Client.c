@@ -24,21 +24,21 @@
 //posizione semafori
 #define CLIENT1 0
 #define CLIENT2 1
+#define BOT 1
 #define SERVER 2
-#define B 3
-#define MUTEX 4
-#define SINC 5
-#define INS 6
-#define TERM 7
+#define B 3 //btree
+#define MUTEX 4 //mutua esclusione
+#define SINC 5 //sincronizzazione
+#define INS 6 //inserimento
+#define TERM 7 //terminazione
 
 //Variabili globali
-#define BOT 1
 struct mossa mossa;
 struct dati * dati;
 char * griglia;
+int shmIdG; //SHM griglia
+int shmIdD; //SHM dati
 int semId;
-int shmIdD;
-int shmIdG;
 int msqId;
 
 //Funzioni utilizzate
@@ -46,15 +46,16 @@ void gioca();
 void giocatore1(char * nomeG1);
 void giocatore2(char * nomeG2);
 void giocoAutomatico();
+void pulisciInput(FILE *const in);
 void rimozioneIpc();
+void fineGioco();
+void abbandonoClient();
+void abbandonoServer();
 void sigHandlerAbbandono(int sig);
 void sigHandlerTavolino(int sig);
 void sigHandlerServer(int sig);
-void abbandonoClient();
-void abbandonoServer();
 void sigHandlerTempo(int sig);
-void pulisciInput(FILE *const in);
-void fineGioco();
+
 
 int main(int argc, char * argv[]){
     int nRighe;
@@ -74,7 +75,7 @@ int main(int argc, char * argv[]){
     nColonne = dati->nColonne;
     nRighe = dati->nRighe;
     //-------------------------------MEMORIA CONDIVISA GRIGLIA-------------------------------
-    key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'b');
+    key_t chiaveG = ftok("./keys/chiaveGriglia.txt", 'a');
     if(chiaveG == -1){
         errExit("Client: creazione chiave griglia fallita\n");
     }
@@ -261,127 +262,6 @@ void gioca(){
     }
 }
 
-
-void sigHandlerTempo(int sig){
-    printf("Timer scaduto! hai abbandonato la partita\n");
-    //per avvisare chi ha vinto
-    if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
-        dati->pidClient[CLIENT1] = 0;
-    }else if(dati->turno[CLIENT2] == 1){ //turno giocatore due
-        dati->pidClient[CLIENT2] = 0;
-    }
-    if(dati->giocoAutomatico == 1){
-        dati->pidClient[CLIENT2] = -4;
-        mossa.mtype = 3;
-        mossa.colonnaScelta = -2;
-        size_t mSize = sizeof(mossa) - sizeof(long);
-        //-------------invio messaggio-------------
-        if (msgsnd (msqId, &mossa, mSize, 0) == -1){
-            errExit("Errore nell'invio della mossa\n");
-        }
-        dati->fineGioco = 5;
-    }
-    semOp(semId, MUTEX, 1);
-    semOp(semId, SERVER, 1);
-    
-    exit(0);
-}
-
-void rimozioneIpc(){
-    semRemove(semId);
-    freeShm(dati);
-    freeShm(griglia);
-    removeShm(shmIdG);
-    removeShm(shmIdD);
-    if (msgctl (msqId, IPC_RMID, NULL) == -1)
-        errExit("msgctl failed");
-}
-
-void abbandonoClient(){
-    if (signal(SIGINT, sigHandlerAbbandono) == SIG_ERR || signal(SIGHUP, sigHandlerAbbandono) == SIG_ERR)
-        errExit("change signal handler failed");
-    if (signal(SIGUSR1, sigHandlerTavolino) == SIG_ERR)
-        errExit("change signal handler failed");
-}
-
-void abbandonoServer(){
-    if (signal(SIGUSR2, sigHandlerServer) == SIG_ERR)
-        errExit("change signal handler failed");
-}
-
-
-void sigHandlerServer(int sig){
-    printf("il server ha terminato il gioco\n");
-    semOp(semId, TERM, 1);
-    exit(0);
-}
-
-void sigHandlerAbbandono(int sig) {
-    printf("\nHai abbandonato la partita\n");
-    if(dati->giocoAutomatico == 0){
-        if(getpid() == dati->pidClient[CLIENT1]){
-            dati->pidClient[CLIENT1] = 0;
-            fflush(stdout);
-        }else if(getpid() == dati->pidClient[CLIENT2]){
-            dati->pidClient[CLIENT2] = 0;
-            fflush(stdout);
-        }
-    }else{
-        dati->pidClient[CLIENT2] = -3;
-    }
-    //V(SERVER)
-    semOp(semId, SERVER, 1); 
-    exit(0);
-}
-
-void sigHandlerTavolino(int sig) {
-    printf("HAI VINTO! L'altro giocatore ha abbandonato la partita\n");
-    exit(0);
-}
-
-void pulisciInput(FILE * const in){ //da cambiare nome variabili
-    if(in){
-        long const descriptor = fileno(in);
-        int dummy;
-        int flags;
-        flags = fcntl(descriptor, F_GETFL);
-        fcntl(descriptor, F_SETFL, flags | O_NONBLOCK);
-        do{
-            dummy = getc(in);
-        }while(dummy != EOF);
-        fcntl(descriptor, F_SETFL, flags);
-    }
-}
-
-void fineGioco(){
-    if(dati->giocoAutomatico == 0){
-        if(dati->fineGioco == 2){
-            printf("Partita finita in parità!\n");
-        }else if(dati->fineGioco == 1){
-            if(dati->turno[CLIENT1] == 0){
-                printf("ha vinto il giocatore 1\n");
-            }else{
-                printf("ha vinto il giocatore 2\n");
-            }
-        }else if(dati->fineGioco == 4){
-            printf("Server disconnesso\n");
-        }
-    }else{
-        if(dati->fineGioco == 2){
-            printf("Partita finita in parità!\n");
-        }else if(dati->fineGioco == 1){
-            if(dati->turno[CLIENT1] == 0){
-                printf("HAI VINTO!\n");
-            }else{
-                printf("HA VINTO IL SERVER\n");
-            }
-        }else if(dati->fineGioco == 4){
-            printf("Server disconnesso\n");
-        }
-    }
-    
-}
-
 void giocoAutomatico(){
     printf("hai scelto l'opzione gioco automatico!\n");
     dati->giocoAutomatico = 1;
@@ -422,4 +302,118 @@ void giocoAutomatico(){
     printf("---fine gioco---\n");
     stampa(dati->nRighe, dati->nColonne, griglia);
     
+}
+
+
+void fineGioco(){
+    if(dati->giocoAutomatico == 0){
+        if(dati->fineGioco == 2){
+            printf("Partita finita in parità!\n");
+        }else if(dati->fineGioco == 1){
+            if(dati->turno[CLIENT1] == 0){
+                printf("ha vinto il giocatore 1\n");
+            }else{
+                printf("ha vinto il giocatore 2\n");
+            }
+        }else if(dati->fineGioco == 4){
+            printf("Server disconnesso\n");
+        }
+    }else{
+        if(dati->fineGioco == 2){
+            printf("Partita finita in parità!\n");
+        }else if(dati->fineGioco == 1){
+            if(dati->turno[CLIENT1] == 0){
+                printf("HAI VINTO!\n");
+            }else{
+                printf("HA VINTO IL SERVER\n");
+            }
+        }
+    }
+    
+}
+
+void abbandonoClient(){
+    if (signal(SIGINT, sigHandlerAbbandono) == SIG_ERR || signal(SIGHUP, sigHandlerAbbandono) == SIG_ERR)
+        errExit("change signal handler failed");
+    if (signal(SIGUSR1, sigHandlerTavolino) == SIG_ERR)
+        errExit("change signal handler failed");
+}
+
+void abbandonoServer(){
+    if (signal(SIGUSR2, sigHandlerServer) == SIG_ERR)
+        errExit("change signal handler failed");
+}
+
+
+void sigHandlerServer(int sig){
+    printf("il server ha terminato il gioco\n");
+    semOp(semId, TERM, 1);
+    exit(0);
+}
+
+void sigHandlerAbbandono(int sig) {
+    printf("\nHai abbandonato la partita\n");
+    if(dati->giocoAutomatico == 0){
+        if(getpid() == dati->pidClient[CLIENT1]){
+            dati->pidClient[CLIENT1] = 0;
+            fflush(stdout);
+        }else if(getpid() == dati->pidClient[CLIENT2]){
+            dati->pidClient[CLIENT2] = 0;
+            fflush(stdout);
+        }
+    }else{
+        dati->pidClient[BOT] = -3;
+    }
+    //V(SERVER)
+    semOp(semId, SERVER, 1); 
+    exit(0);
+}
+
+void sigHandlerTavolino(int sig) {
+    printf("Hai vinto a tavolino! l'altro giocatore ha abbandonato la partita\n");
+    exit(0);
+}
+
+void sigHandlerTempo(int sig){
+    printf("Timer scaduto! hai abbandonato la partita\n");
+    //per avvisare chi ha vinto
+
+    if(dati->turno[CLIENT1] == 1){ //turno giocatore 1
+        dati->pidClient[CLIENT1] = 0;
+    }else if(dati->turno[CLIENT2] == 1){ //turno giocatore 1
+        dati->pidClient[CLIENT2] = 0;
+    }
+
+    if(dati->giocoAutomatico == 1){
+        //dati->pidClient[BOT] = -4;
+        dati->fineGioco = 5;
+    }
+    semOp(semId, MUTEX, 1);
+    semOp(semId, SERVER, 1);
+
+    exit(0);
+}
+
+void pulisciInput(FILE * const input){ //da cambiare nome variabili
+    if(input){
+        long const descrittore = fileno(input);
+        int dummy;
+        int flags;
+        flags = fcntl(descrittore, F_GETFL);
+        fcntl(descrittore, F_SETFL, flags | O_NONBLOCK);
+        do{
+            dummy = getc(input);
+        }while(dummy != EOF); //fine del file
+        fcntl(descrittore, F_SETFL, flags);
+    }
+}
+
+void rimozioneIpc(){
+    semRemove(semId);
+    freeShm(dati);
+    freeShm(griglia);
+    removeShm(shmIdG);
+    removeShm(shmIdD);
+    if (msgctl (msqId, IPC_RMID, NULL) == -1)
+        errExit("msgctl failed");
 }
