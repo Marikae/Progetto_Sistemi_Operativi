@@ -1,1 +1,1 @@
-ciao sono la chiave per la message queue
+ciao, sono la chiave della coda di messaggi.

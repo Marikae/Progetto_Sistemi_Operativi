@@ -1,1 +1,1 @@
-chiave dati
+ciao, sono la chiave della memoria condivisa contenente i dati del programma.

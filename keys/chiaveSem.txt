@@ -1,1 +1,1 @@
-chiave samaforo server
+ciao, sono la chiave dei semafori.

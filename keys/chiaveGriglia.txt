@@ -1,1 +1,1 @@
-sono la chiave per la mem condivisa dell'array
+ciao, sono una componente del barbecue.
