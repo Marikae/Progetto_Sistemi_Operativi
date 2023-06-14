@@ -45,7 +45,7 @@ int msqId;
 void gioca();
 void giocatore1(char * nomeG1);
 void giocatore2(char * nomeG2);
-void giocoAutomatico(char * nomeG1);
+void giocoAutomatico();
 void rimozioneIpc();
 void sigHandlerAbbandono(int sig);
 void sigHandlerTavolino(int sig);
@@ -111,7 +111,7 @@ int main(int argc, char * argv[]){
         }else if(strcmp(argv[2], bot) == 0){ //gioco automatico -> se viene scritto "bot" come terzo elemento
             dati->indirizzamento[CLIENT1] = 1;
             dati->indirizzamento[CLIENT2] = 1;
-            giocoAutomatico(argv[1]);
+            giocoAutomatico();
         }
     }else if(dati->indirizzamento[CLIENT1] == 1 && dati->indirizzamento[CLIENT2] == 0){ //arriva client 2
         dati->indirizzamento[CLIENT1] = 1;
@@ -239,8 +239,9 @@ void gioca(){
         scanf("%i", &colonna);
         abbandonoClient(); //abbandono dell'altro giocatore
     }while(!controllo_colonna(colonna, dati->nColonne) || colonna_piena(colonna, dati->nRighe, dati->nColonne, griglia));
-    //tempo fermato
-    tempo = alarm(0);
+    
+    tempo = alarm(0); //tempo fermato
+
     //invia al server la scelta tramite queue
     printf("hai scelto la colonna: %i \n", colonna);
     //--------------Turno--------------
@@ -260,6 +261,7 @@ void gioca(){
     }
 }
 
+
 void sigHandlerTempo(int sig){
     printf("Timer scaduto! hai abbandonato la partita\n");
     //per avvisare chi ha vinto
@@ -278,10 +280,10 @@ void sigHandlerTempo(int sig){
             errExit("Errore nell'invio della mossa\n");
         }
         dati->fineGioco = 5;
-        
     }
     semOp(semId, MUTEX, 1);
-    semOp(semId, SERVER, 1); 
+    semOp(semId, SERVER, 1);
+    
     exit(0);
 }
 
@@ -333,7 +335,7 @@ void sigHandlerAbbandono(int sig) {
 }
 
 void sigHandlerTavolino(int sig) {
-    printf("Hai vinto! L'altro giocatore ha abbandonato la partita\n");
+    printf("HAI VINTO! L'altro giocatore ha abbandonato la partita\n");
     exit(0);
 }
 
@@ -342,16 +344,8 @@ void pulisciInput(FILE * const in){ //da cambiare nome variabili
         long const descriptor = fileno(in);
         int dummy;
         int flags;
-        /* The above code is setting the file descriptor to non-blocking mode. It first retrieves the
-        current file status flags using the `fcntl()` function with the `F_GETFL` command, and then
-        sets the `O_NONBLOCK` flag using the bitwise OR operator `|` with the retrieved flags. This
-        flag enables non-blocking I/O operations on the file descriptor, meaning that read and write
-        operations will return immediately with an error if there is no data available to be read or
-        if the write operation would block. */
         flags = fcntl(descriptor, F_GETFL);
         fcntl(descriptor, F_SETFL, flags | O_NONBLOCK);
-        /* The above code is reading and discarding all characters from the input stream until the end
-        of file (EOF) is reached. It then sets the file descriptor flags to the original value. */
         do{
             dummy = getc(in);
         }while(dummy != EOF);
@@ -360,20 +354,35 @@ void pulisciInput(FILE * const in){ //da cambiare nome variabili
 }
 
 void fineGioco(){
-    if(dati->fineGioco == 2){
-        printf("Partita finita in parità!\n");
-    }else if(dati->fineGioco == 3){
-        if(dati->turno[CLIENT1] == 0){
-            printf("ha vinto il giocatore 1\n");
-        }else{
-            printf("ha vinto il giocatore 2\n");
+    if(dati->giocoAutomatico == 0){
+        if(dati->fineGioco == 2){
+            printf("Partita finita in parità!\n");
+        }else if(dati->fineGioco == 1){
+            if(dati->turno[CLIENT1] == 0){
+                printf("ha vinto il giocatore 1\n");
+            }else{
+                printf("ha vinto il giocatore 2\n");
+            }
+        }else if(dati->fineGioco == 4){
+            printf("Server disconnesso\n");
         }
-    }else if(dati->fineGioco == 4){
-        printf("Server disconnesso\n");
+    }else{
+        if(dati->fineGioco == 2){
+            printf("Partita finita in parità!\n");
+        }else if(dati->fineGioco == 1){
+            if(dati->turno[CLIENT1] == 0){
+                printf("HAI VINTO!\n");
+            }else{
+                printf("HA VINTO IL SERVER\n");
+            }
+        }else if(dati->fineGioco == 4){
+            printf("Server disconnesso\n");
+        }
     }
+    
 }
 
-void giocoAutomatico(char * nomeG1){
+void giocoAutomatico(){
     printf("hai scelto l'opzione gioco automatico!\n");
     dati->giocoAutomatico = 1;
     dati->pidClient[CLIENT1] = getpid();
@@ -407,7 +416,7 @@ void giocoAutomatico(char * nomeG1){
         semOp(semId, SERVER, 1);  
         fflush(stdout);
         if(dati->fineGioco == 0){
-            printf("Giocatore %s: Turno del Server...\n", nomeG1);    
+            printf("Giocatore pippo: Turno del Server...\n");    
         }
     };
     printf("---fine gioco---\n");
