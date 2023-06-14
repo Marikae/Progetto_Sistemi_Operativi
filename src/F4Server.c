@@ -33,6 +33,7 @@
 #define INS 6
 #define TERM 7
 
+#define CLOCK 10
 //variabili globali
 struct mossa mossa;
 struct dati * dati;
@@ -267,26 +268,31 @@ void abbadonoServer(){
 }
 
 void sigHandlerServer(int sig){
-    if(abbandono == 0){
-        sigset_t set;
-        sigfillset(&set);
-        sigdelset(&set, SIGINT);
-        abbandono = 1;
-        printf("\nal prossimo ctrl c il gioco terminerà\n");
-        sigsuspend(&set);
-        
+    abbandono++;
+    signal(SIGALRM, sigHandlerServer);
+    signal(SIGINT, sigHandlerServer);
+    
+    if(sig == SIGALRM){
+        printf("\nCTRL C resettato\n");
+        abbandono = 0;
+        return;
+    }
+    if(abbandono == 1){
+        alarm(CLOCK);
+        printf("\npremi un'altra volta CTRL C entro %i secondi per terminare il gioco\n", CLOCK);
+    }else if(abbandono == 2){
         printf("\n---gioco terminato---\n");
-        if(dati->giocoAutomatico == 0){
-            kill(dati->pidClient[CLIENT1], SIGUSR2);
-            kill(dati->pidClient[CLIENT2], SIGUSR2);
-            semOp(semId, TERM, -1);
-            semOp(semId, TERM, -1);
-        }else{
-            kill(dati->pidClient[CLIENT1], SIGUSR2);
-            semOp(semId, TERM, -1);
-        }
-        rimozioneIpc();
-        exit(0);
+            if(dati->giocoAutomatico == 0){
+                kill(dati->pidClient[CLIENT1], SIGUSR2);
+                kill(dati->pidClient[CLIENT2], SIGUSR2);
+                semOp(semId, TERM, -1);
+                semOp(semId, TERM, -1);
+            }else{
+                kill(dati->pidClient[CLIENT1], SIGUSR2);
+                semOp(semId, TERM, -1);
+            }
+            rimozioneIpc();
+            exit(0);
     }
 }
 

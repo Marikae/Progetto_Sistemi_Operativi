@@ -39,10 +39,13 @@ void semOp (int semid, unsigned short sem_num, short sem_op) {
 		sop.sem_num = sem_num,
 		sop.sem_op = sem_op,
 		sop.sem_flg = 0};
-
-	if ((semop(semid, &sop, 1)) == -1){
+	int ret;
+	do{
+		ret = semop(semid, &sop, 1);
+	}while(ret == -1 && errno == EINTR);
+	/*if ((semop(semid, &sop, 1)) == -1){
 		errExit("<Semaphore.c>: (SEMOP) Errore durante l'operazione al set di semafori.\n");
-	}
+	}*/
 }
 
 
