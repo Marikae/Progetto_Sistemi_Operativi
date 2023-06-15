@@ -31,7 +31,7 @@ void controlloInputServer(int argc, char * argv[]){
 }
 
 void guidaServer(){
-    printf("  ----------------------------Guida all'inserimento--------------------------\n");
+    printf("  ------------------Guida all'inserimento comandi del Server-----------------\n");
     printf("  | Input atteso:                                                           |\n");
     printf("  |              ./F4Server #RIGHE #COLONNE PEDINA1 PEDINA2 TIMER           |\n");
     printf("  | -> Inserire in PEDINA1 la pedina che utilizzerà il giocatore 1          |\n");
@@ -55,7 +55,7 @@ void controlloInputClient(int argc, char * argv[]){
 }
 
 void guidaClient(){
-    printf("  ----------------------------Guida all'inserimento--------------------------\n");
+    printf("  -------------------Guida all'inserimento comandi del Client---------------\n");
     printf("  | Input atteso:                                                           |\n");
     printf("  |              ./F4Client nomeUtente bot                                  |\n");
     printf("  | -> Inserire in nomeUtente il nome del giocatore                         |\n");
