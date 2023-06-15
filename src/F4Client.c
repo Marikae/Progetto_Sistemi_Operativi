@@ -45,7 +45,7 @@ int msqId;
 void gioca();
 void giocatore1(char * nomeG1);
 void giocatore2(char * nomeG2);
-void giocoAutomatico();
+void giocoAutomatico(char * nomeG1);
 void pulisciInput(FILE *const in);
 void rimozioneIpc();
 void fineGioco();
@@ -111,7 +111,7 @@ int main(int argc, char * argv[]){
         }else if(strcmp(argv[2], bot) == 0){ //gioco automatico -> se viene scritto "bot" come terzo elemento
             dati->indirizzamento[CLIENT1] = 1;
             dati->indirizzamento[CLIENT2] = 1;
-            giocoAutomatico();
+            giocoAutomatico(argv[1]);
         }
     }else if(dati->indirizzamento[CLIENT1] == 1 && dati->indirizzamento[CLIENT2] == 0){ //arriva client 2
         dati->indirizzamento[CLIENT1] = 1;
@@ -152,7 +152,6 @@ void giocatore1(char * nomeG1){
         fflush(stdout);
         //P(mutex)
         semOp(semId, MUTEX, -1);
-        
         gioca(); //MUTUA
         //V(mutex)
         semOp(semId, MUTEX, 1);
@@ -261,15 +260,15 @@ void gioca(){
     }
 }
 
-void giocoAutomatico(){
-    printf("hai scelto l'opzione gioco automatico!\n");
+void giocoAutomatico(char * nomeG1){
+    printf("Ciao %s, hai scelto l'opzione gioco automatico!\nGiocherai contro il nostro SuperComputer42\n", nomeG1);
     dati->giocoAutomatico = 1;
     dati->pidClient[CLIENT1] = getpid();
     //V(SINC)
     semOp(semId, SINC, 1); //sincro con server
     //V(SERVER)
     semOp(semId, SERVER, 1);
-    printf("sincronizzazione avvenuta\n");
+    //printf("sincronizzazione avvenuta\n");
     while(dati->fineGioco == 0){
         //abbandonoServer(); 
         //P(CLIENT1)
@@ -295,7 +294,7 @@ void giocoAutomatico(){
         semOp(semId, SERVER, 1);  
         fflush(stdout);
         if(dati->fineGioco == 0){
-            printf("Giocatore pippo: Turno del Server...\n");    
+            printf("Giocatore %s: Turno del Server...\n", nomeG1);    
         }
     };
     printf("---fine gioco---\n");
@@ -313,8 +312,6 @@ void fineGioco(){
             }else{
                 printf("ha vinto il giocatore 2\n");
             }
-        }else if(dati->fineGioco == 4){
-            printf("Server disconnesso\n");
         }
     }else{
         if(dati->fineGioco == 2){

@@ -355,13 +355,13 @@ void sigHandlerServer(int sig){
     signal(SIGINT, sigHandlerServer);
     
     if(sig == SIGALRM){
-        printf("\nCTRL C resettato\n");
+        printf("\nCTRL-C resettato\n");
         abbandono = 0;
         return;
     }
     if(abbandono == 1){
         alarm(CLOCK);
-        printf("\npremi un'altra volta CTRL C entro %i secondi per terminare il gioco\n", CLOCK);
+        printf("\npremi un'altra volta CTRL-C entro %i secondi per terminare il gioco\n", CLOCK);
     }else if(abbandono == 2){
         printf("\n---gioco terminato---\n");
             if(dati->giocoAutomatico == 0){
