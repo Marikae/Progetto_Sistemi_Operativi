@@ -60,7 +60,7 @@ int main(int argc, char * argv[]){
     int timer = -1;
     char pedina1;
     char pedina2;
-    controlloInput(argc, argv); //funzione CONTROLLO INPUT 
+    controlloInputServer(argc, argv); //funzione CONTROLLO INPUT 
     //salvataggio degli input - (messo sotto perchè prima controlla e poi salva)
     nRighe = atoi(argv[1]);
     nColonne = atoi(argv[2]);
@@ -286,7 +286,6 @@ void giocoAutomatico(){
             }
             //verifica vittoria
             dati->fineGioco = fine_gioco(pox, mossaBot, dati->nRighe, dati->nColonne, griglia);
-            //V(INS)
             abbadonoServer();
             //V(CLIENT)
             semOp(semId, CLIENT1, 1); //sblocco turno del client

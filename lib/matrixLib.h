@@ -6,9 +6,13 @@
 #include <stdbool.h> 
 
 
-void controlloInput(int argc, char * argv[]);
+void controlloInputServer(int argc, char * argv[]);
 
-void guida();
+void guidaServer();
+
+void controlloInputClient(int argc, char * argv[]);
+
+void guidaClient();
 
 bool casella_libera(int pos, char *arr);
 

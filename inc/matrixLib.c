@@ -1,35 +1,36 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h> 
+#include <string.h>
 
 #include "../lib/matrixLib.h"
 
 
-void controlloInput(int argc, char * argv[]){ 
+void controlloInputServer(int argc, char * argv[]){ 
     if(argc < 5){
         printf("Inserimento non valido: numero di elementi inseriti non sufficiente\n");
-        guida();
+        guidaServer();
         exit(1);
     }else if(atoi(argv[2]) < 5 && atoi(argv[1]) < 5 ){ //numero di righe e colonne non valido
         printf("Inserimento non valido: numero righe e colonne minore di 5\n");
-        guida();
+        guidaServer();
         exit(1);
     }else if(atoi(argv[1]) < 5){ //numero di righe non valido
         printf("Inserimento non valido: numero righe minore di 5\n");
-        guida();
+        guidaServer();
         exit(1);
     }else if(atoi(argv[2]) < 5){ //numero di colonne non valido
         printf("Inserimento non valido: numero delle colonne minore di 5\n");
-        guida();
+        guidaServer();
         exit(1);
     }else if(argc == 6 && atoi(argv[5]) < 0){ //se il timer inserito non è un numero positivo
         printf("Il timer deve essere un numero positivo\n");
-        guida();
+        guidaServer();
         exit(1);
     }
 }
 
-void guida(){
+void guidaServer(){
     printf("  ----------------------------Guida all'inserimento--------------------------\n");
     printf("  | Input atteso:                                                           |\n");
     printf("  |              ./F4Server #RIGHE #COLONNE PEDINA1 PEDINA2 TIMER           |\n");
@@ -37,6 +38,29 @@ void guida(){
     printf("  | -> Inserire in PEDINA2 la pedina che utilizzerà il giocatore 2          |\n");
     printf("  | Il numero delle righe e delle colonne deve essere maggiore o uguale a 5 |\n");
     printf("  | Il TIMER non è obbligatorio                                             |\n");
+    printf("  ---------------------------------------------------------------------------\n");
+}
+
+void controlloInputClient(int argc, char * argv[]){
+    char * bot = "bot";
+    if(argc > 3){
+        printf("Inserimento non valido: hai inserito più di tre elementi\n");
+        guidaClient();
+        exit(1);
+    }else if(argc == 3 && strcmp(argv[2], bot) != 0){
+        printf("Comando per il gioco automatico sbagliato!\n");
+        guidaClient();
+        exit(1);
+    }
+}
+
+void guidaClient(){
+    printf("  ----------------------------Guida all'inserimento--------------------------\n");
+    printf("  | Input atteso:                                                           |\n");
+    printf("  |              ./F4Client nomeUtente bot                                  |\n");
+    printf("  | -> Inserire in nomeUtente il nome del giocatore                         |\n");
+    printf("  | -> Inserire 'bot' dopo il campo nomeUtente per iniziare una partita     |\n");
+    printf("  |      contro il SuperComputer42 (campo non obbligatorio)                 |\n");
     printf("  ---------------------------------------------------------------------------\n");
 }
 

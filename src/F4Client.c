@@ -61,6 +61,7 @@ int main(int argc, char * argv[]){
     int nRighe;
     int nColonne;
     char * bot = "bot";
+    controlloInputClient(argc, argv);
     //------------------------------MEMORIA CONDIVISA DATI----------------------------------
     ssize_t sizeMemD = sizeof(dati);
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
