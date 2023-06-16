@@ -42,3 +42,8 @@ int fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr)
 
 
 #endif
+/************************************
+*VR474005
+*Marica Bottega
+*16 giugno 2023
+*************************************/

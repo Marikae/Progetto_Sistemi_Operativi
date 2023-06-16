@@ -1,6 +1,4 @@
-/// @file semaphore.h
-/// @brief Contiene la definizioni di variabili e funzioni
-///         specifiche per la gestione dei SEMAFORI.
+
 #ifndef _SEMAPHORE_HH
 #define _SEMAPHORE_HH
 
@@ -21,3 +19,8 @@ void semOp (int semid, unsigned short sem_num, short sem_op);
 void semRemove(int semid);
 
 #endif
+/************************************
+*VR474005
+*Marica Bottega
+*16 giugno 2023
+*************************************/

@@ -243,3 +243,8 @@ int fine_gioco(int pos, int colonna_scelta, int nRighe, int nColonne, char *arr)
         return 2;
     return 0;
 }
+/************************************
+*VR474005
+*Marica Bottega
+*16 giugno 2023
+*************************************/

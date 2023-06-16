@@ -421,3 +421,8 @@ void rimozioneIpc(){
     if (msgctl(msqId, IPC_RMID, NULL) == -1)
         errExit("Server: rimozione msg queue fallita");
 }
+/************************************
+*VR474005
+*Marica Bottega
+*16 giugno 2023
+*************************************/

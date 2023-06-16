@@ -25,5 +25,5 @@ F4Client: $(CLIENT_OBJS)
 .PHONY: clean
 
 clean:
-	@rm -f src/*.o client server
+	@rm -f src/*.o inc/*.o client server
 	@echo "Removed object files and executables..."

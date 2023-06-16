@@ -8,3 +8,8 @@ void errExit(const char *msg) {
     perror(msg);
     exit(1);
 }
+/************************************
+*VR474005
+*Marica Bottega
+*16 giugno 2023
+*************************************/

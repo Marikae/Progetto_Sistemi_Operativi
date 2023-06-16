@@ -21,3 +21,8 @@ void freeShm(void *ptr_sh);
 void removeShm(int shmid);
 
 #endif
+/************************************
+*VR474005
+*Marica Bottega
+*16 giugno 2023
+*************************************/

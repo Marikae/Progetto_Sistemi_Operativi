@@ -447,3 +447,8 @@ void distaccamentoMemoria(){
         freeShm(griglia);
     }
 }
+/************************************
+*VR474005
+*Marica Bottega
+*16 giugno 2023
+*************************************/

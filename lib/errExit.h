@@ -4,3 +4,8 @@
 void errExit(const char *msg);
 
 #endif
+/************************************
+*VR474005
+*Marica Bottega
+*16 giugno 2023
+*************************************/

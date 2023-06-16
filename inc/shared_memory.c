@@ -13,7 +13,12 @@ void freeShm(void *atShm) {
 }
 
 void removeShm(int shmid) {
-    // delete the shared memory segment
     if (shmctl(shmid, IPC_RMID, NULL) == -1)
         errExit("shmctl failed");
 }
+/************************************
+*VR474005
+*Marica Bottega
+*16 giugno 2023
+*************************************/
+
