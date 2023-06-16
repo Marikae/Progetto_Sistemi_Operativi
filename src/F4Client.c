@@ -234,7 +234,7 @@ void gioca(){
     abbandonoServer();
     abbandonoClient();
     if (signal(SIGALRM, sigHandlerTempo) == SIG_ERR)
-        errExit("change signal handler failed");
+        errExit("Handler tempo fallito\n");
 
     if(dati->timer != -1){
         tempo = dati->timer;
@@ -247,15 +247,6 @@ void gioca(){
         printf("scegli mossa: ");
         fflush(stdout);
         abbandonoClient();
-        /*
-        char c;
-        if ((c = getchar()) == EOF) {
-            semOp(semId, SERVER, 1); 
-            distaccamentoMemoria();
-            exit(0);
-        }
-        ungetc(c, stdin);
-        */
         scanf("%i", &colonna);
         abbandonoClient(); //abbandono dell'altro giocatore
     }while(!controllo_colonna(colonna, dati->nColonne) || colonna_piena(colonna, dati->nRighe, dati->nColonne, griglia));
@@ -291,7 +282,6 @@ void giocoAutomatico(char * nomeG1){
     semOp(semId, SERVER, 1);
     //printf("sincronizzazione avvenuta\n");
     while(dati->fineGioco == 0){
-        //abbandonoServer(); 
         //P(CLIENT1)
         semOp(semId, CLIENT1, -1);
         if(dati->fineGioco != 0 ){
@@ -305,7 +295,7 @@ void giocoAutomatico(char * nomeG1){
         //V(mutex)
         semOp(semId, MUTEX, 1);
         fflush(stdout);
-        //V(SERVER) -> invio al server (mss queue)
+        //V(SERVER) -> invio al server
         semOp(semId, SERVER, 1); 
         //P(INS)
         semOp(semId, INS, -1);
@@ -350,14 +340,14 @@ void fineGioco(){
 
 void abbandonoClient(){
     if (signal(SIGINT, sigHandlerAbbandono) == SIG_ERR || signal(SIGHUP, sigHandlerAbbandono) == SIG_ERR)
-        errExit("change signal handler failed");
+        errExit("Handler abbandono client fallito\n");
     if (signal(SIGUSR1, sigHandlerTavolino) == SIG_ERR)
-        errExit("change signal handler failed");
+        errExit("Handler vincita a tavolino fallita\n");
 }
 
 void abbandonoServer(){
     if (signal(SIGUSR2, sigHandlerServer) == SIG_ERR)
-        errExit("change signal handler failed");
+        errExit("Handler abbandono del server fallito\n");
 }
 
 void sigHandlerServer(int sig){
@@ -436,7 +426,7 @@ void rimozioneIpc(){
     removeShm(shmIdG);
     removeShm(shmIdD);
     if (msgctl (msqId, IPC_RMID, NULL) == -1)
-        errExit("msgctl failed");
+        errExit("Rimozione coda di messaggi fallita\n");
 }
 
 void distaccamentoMemoria(){

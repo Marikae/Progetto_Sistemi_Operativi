@@ -12,10 +12,8 @@ union semun {
     unsigned short * array;
 };
 
-//ESEGUE UN'OPERAZIONE BLOCCANTE SU UN SET DI SEMAFORI
 void semOp (int semid, unsigned short sem_num, short sem_op);
 
-//RIMUOVE UN SET DI SEMAFORI
 void semRemove(int semid);
 
 #endif
