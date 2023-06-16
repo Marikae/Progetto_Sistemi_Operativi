@@ -77,6 +77,8 @@ int main(int argc, char * argv[]){
     dati = (struct dati *)shmat(shmIdD, NULL, 0);
     if(dati->indirizzamento[SERVER] == 0){
         printf("Server non connesso!\n");
+        distaccamentoMemoria();
+        removeShm(shmIdD);
         exit(0);
     }
     nColonne = dati->nColonne;
@@ -438,6 +440,10 @@ void rimozioneIpc(){
 }
 
 void distaccamentoMemoria(){
-    freeShm(dati);
-    freeShm(griglia);
+    if(dati->indirizzamento[SERVER] == 0){ //se il server non c'è allora neanche la griglia non è allocata
+        freeShm(dati); 
+    }else{
+        freeShm(dati);
+        freeShm(griglia);
+    }
 }
