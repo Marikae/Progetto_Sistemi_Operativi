@@ -48,6 +48,7 @@ void giocatore2(char * nomeG2);
 void giocoAutomatico(char * nomeG1);
 void pulisciInput(FILE *const in);
 void rimozioneIpc();
+void distaccamentoMemoria();
 void fineGioco();
 void abbandonoClient();
 void abbandonoServer();
@@ -62,6 +63,7 @@ int main(int argc, char * argv[]){
     int nColonne;
     char * bot = "bot";
     controlloInputClient(argc, argv);
+    
     //------------------------------MEMORIA CONDIVISA DATI----------------------------------
     ssize_t sizeMemD = sizeof(dati);
     key_t chiaveD = ftok("./keys/chiaveDati.txt", 'a');
@@ -73,6 +75,10 @@ int main(int argc, char * argv[]){
         errExit("Client: creazione shm dati fallita\n");
     }
     dati = (struct dati *)shmat(shmIdD, NULL, 0);
+    if(dati->indirizzamento[SERVER] == 0){
+        printf("Server non connesso!\n");
+        exit(0);
+    }
     nColonne = dati->nColonne;
     nRighe = dati->nRighe;
     //-------------------------------MEMORIA CONDIVISA GRIGLIA-------------------------------
@@ -115,14 +121,16 @@ int main(int argc, char * argv[]){
             giocoAutomatico(argv[1]);
         }
     }else if(dati->indirizzamento[CLIENT1] == 1 && dati->indirizzamento[CLIENT2] == 0){ //arriva client 2
-        dati->indirizzamento[CLIENT1] = 1;
+        dati->indirizzamento[CLIENT2] = 1;
         giocatore2(argv[1]);
     }else if(dati->indirizzamento[CLIENT1] == 1 && dati->indirizzamento[CLIENT2] == 1){ //arriva client indesiderato
         printf("Non puoi giocare adesso\n");
+        distaccamentoMemoria();
         exit(0);
     }
     
     fineGioco();
+    distaccamentoMemoria(); //detach delle shm
     //-------------------RIMOZIONE IPC-----------------------
     //le IPC vengono rimosse dal server
     //V(DISC)
@@ -234,8 +242,18 @@ void gioca(){
     
     do{
         pulisciInput(stdin);
-        printf("scegli mossa:\n");
+        printf("scegli mossa: ");
+        fflush(stdout);
         abbandonoClient();
+        /*
+        char c;
+        if ((c = getchar()) == EOF) {
+            semOp(semId, SERVER, 1); 
+            distaccamentoMemoria();
+            exit(0);
+        }
+        ungetc(c, stdin);
+        */
         scanf("%i", &colonna);
         abbandonoClient(); //abbandono dell'altro giocatore
     }while(!controllo_colonna(colonna, dati->nColonne) || colonna_piena(colonna, dati->nRighe, dati->nColonne, griglia));
@@ -340,33 +358,41 @@ void abbandonoServer(){
         errExit("change signal handler failed");
 }
 
-
 void sigHandlerServer(int sig){
     printf("il server ha terminato il gioco\n");
     semOp(semId, TERM, 1);
+    distaccamentoMemoria();
     exit(0);
 }
 
 void sigHandlerAbbandono(int sig) {
     printf("\nHai abbandonato la partita\n");
     if(dati->giocoAutomatico == 0){
-        if(getpid() == dati->pidClient[CLIENT1]){
+        if(dati->indirizzamento[CLIENT2] != 0){
+            if(getpid() == dati->pidClient[CLIENT1]){
+                dati->pidClient[CLIENT1] = 0;
+                fflush(stdout);
+            }else if(getpid() == dati->pidClient[CLIENT2]){
+                dati->pidClient[CLIENT2] = 0;
+                fflush(stdout);
+            }
+        }else{
             dati->pidClient[CLIENT1] = 0;
-            fflush(stdout);
-        }else if(getpid() == dati->pidClient[CLIENT2]){
-            dati->pidClient[CLIENT2] = 0;
-            fflush(stdout);
+            semOp(semId, SINC, 1);
         }
+        
     }else{
         dati->pidClient[BOT] = -3;
     }
     //V(SERVER)
     semOp(semId, SERVER, 1); 
+    distaccamentoMemoria();
     exit(0);
 }
 
 void sigHandlerTavolino(int sig) {
     printf("Hai vinto a tavolino! l'altro giocatore ha abbandonato la partita\n");
+    distaccamentoMemoria();
     exit(0);
 }
 
@@ -383,6 +409,7 @@ void sigHandlerTempo(int sig){
     }
     semOp(semId, MUTEX, 1);
     semOp(semId, SERVER, 1);
+    distaccamentoMemoria();
     exit(0);
 }
 
@@ -408,4 +435,9 @@ void rimozioneIpc(){
     removeShm(shmIdD);
     if (msgctl (msqId, IPC_RMID, NULL) == -1)
         errExit("msgctl failed");
+}
+
+void distaccamentoMemoria(){
+    freeShm(dati);
+    freeShm(griglia);
 }

@@ -27,6 +27,10 @@ void controlloInputServer(int argc, char * argv[]){
         printf("Il timer deve essere un numero positivo\n");
         guidaServer();
         exit(1);
+    }else if(argc > 6){
+        printf("Errore: hai inserito dei parametri non necessari\n");
+        guidaServer();
+        exit(1);
     }
 }
 

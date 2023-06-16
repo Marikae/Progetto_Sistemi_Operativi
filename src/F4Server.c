@@ -90,6 +90,7 @@ int main(int argc, char * argv[]){
     dati->pedina[CLIENT2] = pedina2;
     dati->indirizzamento[CLIENT1] = 0;
     dati->indirizzamento[CLIENT2] = 0;
+    dati->indirizzamento[SERVER] = 1;
     dati->turno[CLIENT1] = 1;
     dati->turno[CLIENT2] = 0;
     dati->fineGioco = 0;
@@ -140,11 +141,18 @@ int main(int argc, char * argv[]){
     //SINCRONIZZAZIONE SERVER/CLIENTS
     printf("Attesa giocatori...\n");
     //P(SINC)
+    abbadonoServer();
+
     semOp(semId, SINC, -1); //attesa client1
+    abbadonoServer();
     printf("-> Giocatore 1 arrivato\n");
     if(dati->giocoAutomatico == 0){ //se il gioco è tra due utenti:
         //P(sinc)
         semOp(semId, SINC, -1); //attesa client2
+        if(abbandonoClient() == 1){
+            rimozioneIpc();
+            exit(0);
+        }
         printf("-> Giocatore 2 arrivato\n");
         printf("----------------Sincronizzazione avvenuta------------\n");
         //inizio del ciclo che termina solo quando il gioco termina (vittoria - abbandono - parità)
@@ -319,24 +327,43 @@ void generaMossa(){
 }
 
 int abbandonoClient(){
-    if(dati->giocoAutomatico == 0){ //gioco in coppia
-        if(dati->pidClient[CLIENT1] == 0){
-            kill(dati->pidClient[CLIENT2], SIGUSR1);
-            printf("partita finita per abbandono del giocatore 1\n");
-            return 1;
-        }else if(dati->pidClient[CLIENT2] == 0){
-            kill(dati->pidClient[CLIENT1], SIGUSR1);
-            printf("partita finita per abbandono del giocatore 2\n");
-            return 1;
+    if(dati->indirizzamento[CLIENT1] != 0 && dati->indirizzamento[CLIENT2] == 0){ //Arriva solo un giocatore
+        if(dati->giocoAutomatico == 0){ //gioco in coppia
+            if(dati->pidClient[CLIENT1] == 0){
+                //kill(dati->pidClient[CLIENT2], SIGUSR1);
+                printf("il giocatore arrivato si è disconnesso...\n");
+                return 1;
+            }
+        }else{ //gioco automatico
+            if(dati->pidClient[BOT] == -3){
+                printf("Il giocatore ha abbandonato\n");
+                return 1;
+            }
+            if(dati->fineGioco == 5){ //fine gioco = 5 timer scaduto
+                printf("Il Timer è scaduto\n");
+                return 1;
+            }
         }
-    }else{ //gioco automatico
-        if(dati->pidClient[BOT] == -3){
-            printf("Il giocatore ha abbandonato\n");
-            return 1;
-        }
-        if(dati->fineGioco == 5){ //fine gioco = 5 timer scaduto
-            printf("Il Timer è scaduto\n");
-            return 1;
+    }else if(dati->indirizzamento[CLIENT1] != 0){
+        if(dati->giocoAutomatico == 0){ //gioco in coppia
+            if(dati->pidClient[CLIENT1] == 0){
+                kill(dati->pidClient[CLIENT2], SIGUSR1);
+                printf("partita finita per abbandono del giocatore 1\n");
+                return 1;
+            }else if(dati->pidClient[CLIENT2] == 0){
+                kill(dati->pidClient[CLIENT1], SIGUSR1);
+                printf("partita finita per abbandono del giocatore 2\n");
+                return 1;
+            }
+        }else{ //gioco automatico
+            if(dati->pidClient[BOT] == -3){
+                printf("Il giocatore ha abbandonato\n");
+                return 1;
+            }
+            if(dati->fineGioco == 5){ //fine gioco = 5 timer scaduto
+                printf("Il Timer è scaduto\n");
+                return 1;
+            }
         }
     }
     return 0;
@@ -363,6 +390,7 @@ void sigHandlerServer(int sig){
         printf("\npremi un'altra volta CTRL-C entro %i secondi per terminare il gioco\n", CLOCK);
     }else if(abbandono == 2){
         printf("\n---gioco terminato---\n");
+        if(dati->indirizzamento[CLIENT1] != 0 && dati->indirizzamento[CLIENT2] != 0){ //ci sono tutti e due i client
             if(dati->giocoAutomatico == 0){
                 kill(dati->pidClient[CLIENT1], SIGUSR2);
                 kill(dati->pidClient[CLIENT2], SIGUSR2);
@@ -374,6 +402,15 @@ void sigHandlerServer(int sig){
             }
             rimozioneIpc();
             exit(0);
+        }else if(dati->indirizzamento[CLIENT1] != 0 && dati->indirizzamento[CLIENT2] == 0){ //c'è solo il primo client
+            kill(dati->pidClient[CLIENT1], SIGUSR2);
+            rimozioneIpc();
+            exit(0);
+        }else{
+            rimozioneIpc();
+            exit(0);
+        }
+        
     }
 }
 

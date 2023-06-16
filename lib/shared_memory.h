@@ -8,7 +8,7 @@ struct dati{
     int nRighe;
     int timer;
     char pedina[2];
-    int indirizzamento[2];
+    int indirizzamento[3];
     int turno[2];
     int pidClient[2];
     int fineGioco;
