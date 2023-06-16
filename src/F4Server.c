@@ -140,9 +140,8 @@ int main(int argc, char * argv[]){
     //-----------------------------------------AVVIO GIOCO----------------------------------------------
     //SINCRONIZZAZIONE SERVER/CLIENTS
     printf("Attesa giocatori...\n");
-    //P(SINC)
     abbadonoServer();
-
+    //P(SINC)
     semOp(semId, SINC, -1); //attesa client1
     abbadonoServer();
     printf("-> Giocatore 1 arrivato\n");
@@ -206,7 +205,6 @@ void gioco(){
     //ricevuta del messaggio
     if (msgrcv(msqId, &mossa, mSize, 3, IPC_NOWAIT) == -1)
         printf("%s\n", strerror(errno));
-
     if(mossa.colonnaScelta != -1){
         colonnaScelta = mossa.colonnaScelta;
         int pos = posizione(colonnaScelta, nRighe, nColonne, griglia);
